@@ -1,0 +1,10 @@
+{
+    "compilerOptions": {
+        "incremental": true,
+        "target": "es6",
+        "sourceMap": true,
+        "lib": [ "es6" ],
+        "module": "CommonJS",
+        "outDir": "build"
+    }
+}

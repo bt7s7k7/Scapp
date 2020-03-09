@@ -1,0 +1,27 @@
+{
+  "name": "system-control-client",
+  "version": "0.0.0",
+  "description": "",
+  "main": "build/app.js",
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "files": [
+    "build/**/*"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bt7s7k7/SystemControlApp.git"
+  },
+  "author": "bt7s7k7",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/bt7s7k7/SystemControlApp/issues"
+  },
+  "homepage": "https://github.com/bt7s7k7/SystemControlApp#readme",
+  "devDependencies": {
+    "@types/node": "^13.9.0",
+    "typescript": "^3.8.3"
+  }
+}
