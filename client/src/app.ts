@@ -1,7 +1,12 @@
 #!/usr/bin/env n
 import { getLocalConfig, resetRegisterData } from "./config";
-import { getConfig, rename, changeAllowedUsers } from "./functions";
+import { getConfig, rename, changeAllowedUsers, setNgrokUrl } from "./functions";
 import { createInterface } from "readline";
+import { connect } from "ngrok";
+import { createServer } from "http";
+import { AddressInfo } from "net";
+import { server as WebSocketServer } from "websocket";
+import { WEBSOCKET_PROTOCOL } from "../../common/types";
 
 getLocalConfig().then(async registerInfo => {
     var commands = {
@@ -53,14 +58,65 @@ getLocalConfig().then(async registerInfo => {
             callback: async () => {
                 var config = await getConfig(registerInfo)
                 console.log(config.name)
-            }, 
+            },
             desc: "name              - Returns the name of this client"
         },
         "rename": {
             args: 1,
             desc: "rename <name>     - Changes the name of this client",
-            callback: ([name])=> {
+            callback: ([name]) => {
                 return rename(registerInfo, name)
+            }
+        },
+        "run": {
+            args: 0,
+            desc: "run               - Starts ngrok and websocket host, brings the client online",
+            callback: () => {
+                var server = createServer((request, response) => {
+                    response.end("This is a websocket port");
+                })
+
+                server.listen(0, async () => {
+                    var port = (server.address() as AddressInfo).port
+                    console.log(`Server listening on port ${port}`)
+
+                    var websocketServer = new WebSocketServer({
+                        httpServer: server
+                    })
+
+                    console.log("Websocket started")
+
+                    websocketServer.on("request", request => {
+                        var canAccept = request.requestedProtocols.indexOf(WEBSOCKET_PROTOCOL) != -1
+                        if (!canAccept) {
+                            request.reject(404, "No supported protocol")
+                        } else {
+                            var connection = request.accept(WEBSOCKET_PROTOCOL)
+                            console.log(`Connection from ${connection.remoteAddress}`)
+                            connection.on("message", (data) => {
+
+                            })
+
+                            connection.on("close", (code, desc) => {
+                                console.log(`Connection from ${connection.remoteAddress} lost, ${code} ${desc}`)
+                            })
+                        }
+                    })
+
+                    var url = await connect({
+                        addr: port,
+                        onStatusChange: (status) => {
+                            console.log(`ngrok status is now ${status}`)
+                        }
+                    })
+
+                    console.log(`ngrok connected, url is ${url}`)
+
+                    await setNgrokUrl(registerInfo, url)
+
+                    console.log("URL is now set in remote")
+
+                })
             }
         }
     } as { [index: string]: { args: number, callback: (args: string[]) => any, desc: string } }

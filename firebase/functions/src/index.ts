@@ -83,6 +83,32 @@ export const renameClient = functions.https.onRequest(async (request, response) 
     }
 })
 
+export const setClientUrl = functions.https.onRequest(async (request, response) => {
+    var data = request.body as IClientRegisterInfo & { url: string }
+    if ("id" in data && "accessToken" in data && "url" in data) {
+        let doc = await firestore.collection("clients").doc(data.id).get()
+        if (doc.exists) {
+            const docData = doc.data() as IClientDocument
+            if (docData.accessToken == docData.accessToken) {
+                doc.ref.update({ url: data.url })
+                    .then(() => {
+                        response.status(200).send({
+                            success: true
+                        })
+                    }).catch(err => {
+                        response.status(500).send(err.toString())
+                    })
+            } else {
+                response.status(403).send("Wrong access token")
+            }
+        } else {
+            response.status(404).send("Document not found")
+        }
+    } else {
+        response.status(400).send("Invalid request body")
+    }
+})
+
 
 export const changeClientAllowedUsers = functions.https.onRequest(async (request, response) => {
     var data = request.body as IClientRegisterInfo & { add: string[], remove: string[] }

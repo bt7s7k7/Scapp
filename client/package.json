@@ -23,10 +23,13 @@
   "devDependencies": {
     "@types/firebase": "^3.2.1",
     "@types/node": "^13.9.0",
+    "@types/websocket": "^1.0.0",
     "typescript": "^3.8.3"
   },
   "dependencies": {
-    "firebase": "^7.10.0"
+    "firebase": "^7.10.0",
+    "ngrok": "^3.2.7",
+    "websocket": "^1.0.31"
   },
   "bin": {
     "scapp": "./build/client/src/app.js"

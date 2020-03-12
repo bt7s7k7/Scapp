@@ -78,3 +78,10 @@ export function changeAllowedUsers(info: IClientRegisterInfo, add: string[], rem
         remove
     })
 }
+
+export function setNgrokUrl(info: IClientRegisterInfo, url: string) {
+    return executeFunctionRaw("setClientUrl", {
+        ...info,
+        url
+    })
+}
