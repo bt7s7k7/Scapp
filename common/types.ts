@@ -11,4 +11,8 @@ export interface IClientRegisterInfo {
     id: string
 }
 
+export interface IClientLocalConfig extends IClientRegisterInfo {
+    
+}
+
 export const ACCESS_TOKEN_LENGHT = 256

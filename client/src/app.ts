@@ -1,8 +1,8 @@
-import { getRegisterData, resetRegisterData } from "./config";
+import { getLocalConfig, resetRegisterData } from "./config";
 import { getConfig, rename, changeAllowedUsers } from "./functions";
 import { createInterface } from "readline";
 
-getRegisterData().then(async registerInfo => {
+getLocalConfig().then(async registerInfo => {
     var commands = {
         "allowed": {
             args: 0,
