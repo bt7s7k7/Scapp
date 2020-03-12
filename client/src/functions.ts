@@ -63,3 +63,10 @@ export function registerClient(name: string) : Promise<IClientRegisterInfo> {
 export function getConfig(info : IClientRegisterInfo): Promise<IClientDocument> {
     return executeFunctionRaw("getClientConfig", info)
 }
+
+export function rename(info: IClientRegisterInfo, name: string): Promise<void> {
+    return executeFunctionRaw("renameClient", {
+        ...info,
+        name
+    })
+}

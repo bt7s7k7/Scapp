@@ -1,5 +1,5 @@
 import { getRegisterData, resetRegisterData } from "./config";
-import { getConfig } from "./functions";
+import { getConfig, rename } from "./functions";
 import { createInterface } from "readline";
 
 getRegisterData().then(async registerInfo => {
@@ -58,8 +58,8 @@ getRegisterData().then(async registerInfo => {
         "rename": {
             args: 1,
             desc: "rename <name>     - Changes the name of this client",
-            callback: async ()=> {
-
+            callback: ([name])=> {
+                return rename(registerInfo, name)
             }
         }
     } as { [index: string]: { args: number, callback: (args: string[]) => any, desc: string } }

@@ -55,3 +55,19 @@ export const getClientConfig = functions.https.onRequest(async (request, respons
     }
 })
 
+export const renameClient = functions.https.onRequest(async (request, response) => {
+    var data = request.body as IClientRegisterInfo & { name: string }
+    if ("id" in data && "accessToken" in data && "name" in data) {
+        firestore.collection("clients").doc(data.id).update({ name: data.name })
+            .then(() => {
+                response.status(200).send({
+                    success: true
+                })
+            }).catch(err => {
+                response.status(500).send(err.toString())
+            })
+    } else {
+        response.status(400).send("Invalid request body")
+    }
+})
+
