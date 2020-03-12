@@ -2,7 +2,7 @@ import { hostname, homedir } from "os"
 import { join } from "path"
 import { readFile, writeFile } from "fs"
 import { registerClient } from "./functions"
-import { IClientRegisterInfo, IClientDocument, IClientLocalConfig } from "../../common/types"
+import { IClientLocalConfig } from "../../common/types"
 
 export const CONFIG_PATH = join(homedir(), ".systemcontrol.json")
 
