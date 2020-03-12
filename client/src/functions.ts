@@ -70,3 +70,11 @@ export function rename(info: IClientRegisterInfo, name: string): Promise<void> {
         name
     })
 }
+
+export function changeAllowedUsers(info: IClientRegisterInfo, add: string[], remove: string[]) {
+    return executeFunctionRaw("changeClientAllowedUsers", {
+        ...info,
+        add,
+        remove
+    })
+}

@@ -1,5 +1,5 @@
 import { getRegisterData, resetRegisterData } from "./config";
-import { getConfig, rename } from "./functions";
+import { getConfig, rename, changeAllowedUsers } from "./functions";
 import { createInterface } from "readline";
 
 getRegisterData().then(async registerInfo => {
@@ -29,14 +29,14 @@ getRegisterData().then(async registerInfo => {
         "allow": {
             args: 1,
             callback: ([name]) => {
-
+                return changeAllowedUsers(registerInfo, [name], [])
             },
             desc: "allow <userid>    - Allows the userid access to this client"
         },
         "disallow": {
             args: 1,
             callback: ([name]) => {
-
+                return changeAllowedUsers(registerInfo, [], [name])
             },
             desc: "disallow <userid> - Removes the userid from allowed users"
         },
