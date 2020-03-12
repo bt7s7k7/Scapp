@@ -1,5 +1,5 @@
 {
-  "name": "system-control-client",
+  "name": "scapp",
   "version": "0.0.0",
   "description": "",
   "main": "build/client/src/app.js",
@@ -27,5 +27,8 @@
   },
   "dependencies": {
     "firebase": "^7.10.0"
+  },
+  "bin": {
+    "scapp": "./build/client/src/app.js"
   }
 }

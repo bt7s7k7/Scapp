@@ -1,3 +1,4 @@
+#!/usr/bin/env n
 import { getLocalConfig, resetRegisterData } from "./config";
 import { getConfig, rename, changeAllowedUsers } from "./functions";
 import { createInterface } from "readline";
