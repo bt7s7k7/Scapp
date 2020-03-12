@@ -8,7 +8,7 @@ export const CONFIG_PATH = join(homedir(), ".systemcontrol.json")
 
 export function saveRegisterData(config: IClientRegisterInfo) {
     return new Promise<void>((resolve, reject) => {
-        writeFile(CONFIG_PATH, JSON.stringify(config), (err)=>{
+        writeFile(CONFIG_PATH, JSON.stringify(config), (err) => {
             if (err) reject(err)
             else {
                 resolve()
@@ -17,13 +17,18 @@ export function saveRegisterData(config: IClientRegisterInfo) {
     })
 }
 
+export async function resetRegisterData() {
+    let config = await registerClient(hostname())
+    saveRegisterData(config)
+    return config
+}
+
 export function getRegisterData() {
     return new Promise<IClientRegisterInfo>((resolve, reject) => {
         readFile(CONFIG_PATH, async (err, data) => {
             if (err) {
                 if (err.code == "ENOENT") {
-                    let config = await registerClient(hostname())
-                    saveRegisterData(config).then(()=>resolve(config)).catch(err=>reject(err))
+                    resetRegisterData().then(config => resolve(config)).catch(err => reject(err))
                 } else {
                     reject(err)
                 }
