@@ -2,7 +2,7 @@
   "name": "system-control-client",
   "version": "0.0.0",
   "description": "",
-  "main": "build/app.js",
+  "main": "build/client/src/app.js",
   "scripts": {
     "build": "tsc",
     "prepare": "npm run build"
@@ -21,7 +21,11 @@
   },
   "homepage": "https://github.com/bt7s7k7/SystemControlApp#readme",
   "devDependencies": {
+    "@types/firebase": "^3.2.1",
     "@types/node": "^13.9.0",
     "typescript": "^3.8.3"
+  },
+  "dependencies": {
+    "firebase": "^7.10.0"
   }
 }

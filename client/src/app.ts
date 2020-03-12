@@ -1,2 +1,9 @@
+import { getRegisterData } from "./config";
+import { registerClient, getConfig } from "./functions";
+import { hostname } from "os";
 
-console.log("Hello world")
+getRegisterData().then(async registerInfo => {
+    var config = await getConfig(registerInfo)
+
+    console.log(config)
+})
