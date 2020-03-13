@@ -1,10 +1,17 @@
 <template>
-  <div class="home"></div>
+	<div>Logged in</div>
 </template>
 
-<script>
-export default {
-  name: "Home",
-  components: {}
-};
+<script lang="ts">
+	import { authStore, auth } from "../firebase"
+	import * as firebaseui from "firebaseui"
+	import Vue from "vue"
+
+	export default Vue.extend({
+		name: "Home",
+		components: {},
+		data: () => ({
+			auth: authStore
+		})
+	})
 </script>
