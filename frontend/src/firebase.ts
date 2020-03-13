@@ -1,5 +1,6 @@
 import * as firebase from "firebase/app"
 import "firebase/auth"
+import "firebase/firestore"
 
 export const firebaseApp = firebase.initializeApp({
     apiKey: "AIzaSyD6rSFHcbvP6ZtSDH9JniL_IFbdTDjoUEk",
@@ -25,3 +26,5 @@ auth.onAuthStateChanged(user=>{
 
     console.log(user)
 })
+
+export const db = firebaseApp.firestore()
