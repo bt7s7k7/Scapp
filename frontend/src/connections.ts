@@ -1,4 +1,5 @@
 import { IClientDocument, WEBSOCKET_PROTOCOL } from "../../common/types"
+import Vue from "vue"
 
 export interface IConnection {
     active: boolean,
@@ -29,36 +30,36 @@ function createWebsocket(client: IClientDocument & { id: string }, connection: I
     try {
         websocket = new WebSocket(url, WEBSOCKET_PROTOCOL)
     } catch {
-        connection.active = false
-        connection.websocket = null
+        Vue.set(connection, "active", false)
+        Vue.set(connection, "websocket", null)
     }
 
     if (websocket) {
         websocket.addEventListener("error", () => {
-            connection.active = false
-            connection.websocket = null
+            Vue.set(connection, "active", false)
+            Vue.set(connection, "websocket", null)
         })
         websocket.addEventListener("open", () => {
-            connection.active = true
+            Vue.set(connection, "active", true)
         })
         websocket.addEventListener("close", () => {
-            connection.active = false
-            connection.websocket = null
+            Vue.set(connection, "active", false)
+            Vue.set(connection, "websocket", null)
         })
-
-        connection.websocket = websocket
+        
+        Vue.set(connection, "websocket", websocket)
     }
 }
 
 export function updateConnections(clients: (IClientDocument & { id: string })[]) {
     for (let client of clients) {
         if (!(client.id in connections)) {
-            connections[client.id] = createConnection(client)
+            Vue.set(connections, client.id, createConnection(client))
         } else {
             let connection = connections[client.id]
 
             if (!connection.active && connection.url != client.url) {
-                connection.url = client.url
+                Vue.set(connection, "url", client.url)
                 createWebsocket(client, connection)
             }
         }
