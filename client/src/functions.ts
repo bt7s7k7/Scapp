@@ -31,18 +31,18 @@ export function executeFunctionRaw(name: string, data: any) {
                 "Content-Type": "application/json",
             },
             method: "POST"
-        }, (message)=>{
+        }, (message) => {
             var dataFragments = []
-    
+
             message.on("data", data => {
                 dataFragments.push(data)
             })
-    
+
             message.on("end", () => {
                 if (message.statusCode == 200)
                     resolve(JSON.parse(dataFragments.join("")))
                 else
-                    reject(dataFragments.join("") || message.statusMessage)
+                    reject(dataFragments.join("") || `Error ${message.statusCode} ${message.statusMessage}\n ${message.rawHeaders.map(v => "  " + v).join("\n")}`)
             })
         })
 
@@ -56,11 +56,11 @@ export function executeFunctionRaw(name: string, data: any) {
     })
 }
 
-export function registerClient(name: string) : Promise<IClientRegisterInfo> {
+export function registerClient(name: string): Promise<IClientRegisterInfo> {
     return executeFunctionRaw("registerClient", { name })
 }
 
-export function getConfig(info : IClientRegisterInfo): Promise<IClientDocument> {
+export function getConfig(info: IClientRegisterInfo): Promise<IClientDocument> {
     return executeFunctionRaw("getClientConfig", info)
 }
 

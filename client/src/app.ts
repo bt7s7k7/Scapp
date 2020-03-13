@@ -7,6 +7,7 @@ import { createServer } from "http";
 import { AddressInfo } from "net";
 import { server as WebSocketServer } from "websocket";
 import { WEBSOCKET_PROTOCOL } from "../../common/types";
+import { parse, format } from "url";
 
 getLocalConfig().then(async registerInfo => {
     var commands = {
@@ -110,9 +111,13 @@ getLocalConfig().then(async registerInfo => {
                         }
                     })
 
-                    console.log(`ngrok connected, url is ${url}`)
-
-                    await setNgrokUrl(registerInfo, url)
+                    
+                    var wsUrl = parse(url)
+                    
+                    wsUrl.protocol = "wss"
+                    
+                    console.log(`ngrok connected, url is ${url}, formated as ${format(wsUrl)}`)
+                    await setNgrokUrl(registerInfo, format(wsUrl))
 
                     console.log("URL is now set in remote")
 
