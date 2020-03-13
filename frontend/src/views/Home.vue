@@ -28,6 +28,7 @@
             connections
 		}),
 		mounted(this: Vue) {
+            if (!authStore.currentUser) return
 			this.$bind("clients", db.collection("clients").where("allowedUsers", "array-contains", authStore.currentUser.uid))
         },
         watch: {

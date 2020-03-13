@@ -16,7 +16,7 @@ function createConnection(client: IClientDocument & { id: string }) {
         url: client.url
     } as IConnection
 
-    connection.websocket = createWebsocket(client, connection)
+    createWebsocket(client, connection)
 
     return connection
 }
