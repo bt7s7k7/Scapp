@@ -3,7 +3,8 @@
 		<v-card class="mx-auto" v-for="client in clients" :key="client.id">
 			<v-card-title>{{ client.name }}</v-card-title>
             <v-card-text>
-                <v-icon small class="mr-1" color="success" v-if="connections[client.id].active">mdi-check-circle</v-icon>
+                <v-icon small class="mr-1" color="success" v-if="connections[client.id].state == 'online'">mdi-check-circle</v-icon>
+                <v-icon small class="mr-1" color="primary" v-else-if="connections[client.id].state == 'connecting'">mdi-sync-circle</v-icon>
                 <v-icon small class="mr-1" color="error" v-else>mdi-close-circle</v-icon>
                 <span>{{ client.url }}</span>
             </v-card-text>

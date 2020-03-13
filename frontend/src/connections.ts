@@ -2,7 +2,7 @@ import { IClientDocument, WEBSOCKET_PROTOCOL } from "../../common/types"
 import Vue from "vue"
 
 export interface IConnection {
-    active: boolean,
+    state: "connecting" | "offline" | "online",
     websocket: WebSocket | null,
     url: string,
     id: string
@@ -12,7 +12,7 @@ export const connections = {} as { [index: string]: IConnection }
 
 function createConnection(client: IClientDocument & { id: string }) {
     let connection = {
-        active: false,
+        state: "connecting",
         id: client.id,
         url: client.url
     } as IConnection
@@ -30,20 +30,20 @@ function createWebsocket(client: IClientDocument & { id: string }, connection: I
     try {
         websocket = new WebSocket(url, WEBSOCKET_PROTOCOL)
     } catch {
-        Vue.set(connection, "active", false)
+        Vue.set(connection, "state", "offline")
         Vue.set(connection, "websocket", null)
     }
 
     if (websocket) {
         websocket.addEventListener("error", () => {
-            Vue.set(connection, "active", false)
+            Vue.set(connection, "state", "offline")
             Vue.set(connection, "websocket", null)
         })
         websocket.addEventListener("open", () => {
-            Vue.set(connection, "active", true)
+            Vue.set(connection, "state", "online")
         })
         websocket.addEventListener("close", () => {
-            Vue.set(connection, "active", false)
+            Vue.set(connection, "state", "offline")
             Vue.set(connection, "websocket", null)
         })
         
@@ -58,7 +58,7 @@ export function updateConnections(clients: (IClientDocument & { id: string })[])
         } else {
             let connection = connections[client.id]
 
-            if (!connection.active && connection.url != client.url) {
+            if (!connection.state && connection.url != client.url) {
                 Vue.set(connection, "url", client.url)
                 createWebsocket(client, connection)
             }
