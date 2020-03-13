@@ -33,11 +33,13 @@
 		}),
 		mounted() {
             var authContainer = document.getElementById("authContainer")
+            if (authContainer == null) throw new Error("Cannot find auth container")
 			authUI.start(authContainer, {
 				signInOptions: [firebase.auth.GoogleAuthProvider.PROVIDER_ID],
 				callbacks: {
 					uiShown: () => {
                         this.loading = false
+                        // @ts-ignore
                         if (authContainer.clientHeight > 70) {
                             authStore.loading = true
                         }
