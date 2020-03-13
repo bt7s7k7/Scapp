@@ -2,6 +2,7 @@
 	<v-app>
 		<template v-if="!authStore.loading">
 			<v-app-bar app color="primary" dark dense>
+                <v-icon class="mr-1">mdi-play-network</v-icon>
 				<v-toolbar-title>Scapp</v-toolbar-title>
 				<v-divider vertical inset class="mx-4"></v-divider>
 				<v-btn text class="text-capitalize">Root</v-btn>
