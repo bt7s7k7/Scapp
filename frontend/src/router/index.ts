@@ -10,10 +10,17 @@ const routes = [
         name: "Home",
         path: "/",
         component: Home
-    }, {
+    },
+    {
         name: "Login",
         path: "/login",
         component: () => import( /* webpackChunkName: "login" */ "../views/Login.vue")
+    },
+    {
+        name: "Client",
+        path: "/:clientId",
+        component: () => import( /* webpackChunkName: "client" */ "../views/Client.vue"),
+        props: true
     }
 ] as RouteConfig[]
 
