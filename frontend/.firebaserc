@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "system-control-app"
+  },
+  "targets": {
+    "system-control-app": {
+      "hosting": {
+        "main": [
+          "scapp-web"
+        ]
+      }
+    }
+  }
+}
