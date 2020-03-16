@@ -93,13 +93,13 @@ getLocalConfig().then(async registerInfo => {
                             request.reject(404, "No supported protocol")
                         } else {
                             var connection = request.accept(WEBSOCKET_PROTOCOL)
-                            console.log(`Connection from ${connection.remoteAddress}`)
+                            
                             connection.on("message", (data) => {
 
                             })
 
                             connection.on("close", (code, desc) => {
-                                console.log(`Connection from ${connection.remoteAddress} lost, ${code} ${desc}`)
+
                             })
                         }
                     })

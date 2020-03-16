@@ -58,7 +58,7 @@ export function updateConnections(clients: (IClientDocument & { id: string })[])
         } else {
             let connection = connections[client.id]
 
-            if (!connection.state && connection.url != client.url) {
+            if (connection.state == "offline" && connection.url != client.url) {
                 Vue.set(connection, "url", client.url)
                 createWebsocket(client, connection)
             }
