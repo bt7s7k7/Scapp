@@ -2,7 +2,7 @@ import { connection as Connection } from "websocket"
 import { IFrontendResponse, IFrontendRequest, IRunningActionInfo, IClientRegisterInfo } from "../../common/types"
 import { verifyIDToken } from "./functions"
 import { spawn, IPty, IPtyForkOptions } from "node-pty"
-import { homedir } from "os"
+import { homedir, EOL } from "os"
 
 export const DEFAULT_SHELL = process.env.COMSPEC || process.env.SHELL
 
@@ -41,7 +41,7 @@ export async function startAction(context: string, action: IAction) {
         rows: 30
     })
 
-    process.write(action.command + "& exit\n\r")
+    process.write(action.command + "& exit" + EOL)
 
     var runningAction = {
         history: [],
