@@ -68,6 +68,32 @@
 						</v-card-actions>
 					</v-card>
 				</v-dialog>
+				<v-dialog v-model="deleteDialog" max-width="400">
+					<template v-slot:activator="{ on }">
+						<v-btn text fab small v-on="on">
+							<v-icon>mdi-delete</v-icon>
+						</v-btn>
+					</template>
+                    <v-card>
+                        <v-card-title primary-title>
+                            Are you sure?
+                        </v-card-title>
+                        <v-card-text>
+                            This will delete this client and all allowed users from the database. 
+                            After this the client's access token will be invalidated and you will
+                            have to run <code>scapp reset</code>.
+                        </v-card-text>
+                        <v-card-actions>
+                            <v-spacer></v-spacer>
+                            <v-btn text @click="deleteDialog = false; deleteClient()">
+                                delete
+                            </v-btn>
+                            <v-btn text color="primary" @click="deleteDialog = false">
+                                cancel
+                            </v-btn>
+                        </v-card-actions>
+                    </v-card>
+				</v-dialog>
 			</v-card-actions>
 		</v-card>
 	</v-container>
@@ -81,6 +107,7 @@
 	import { connections, updateConnections } from "../connections"
 	import StatusIndicator from "../components/StatusIndicator.vue"
 	import firebase from "firebase/app"
+import router from '../router'
 
 	export default Vue.extend({
 		name: "Client",
@@ -93,7 +120,8 @@
 			usersDialog: false,
 			userAddDialog: false,
 			userIdToAdd: "",
-			authStore
+			authStore,
+			deleteDialog: false
 		}),
 		mounted(this: Vue & any) {
 			this.$bind("client", db.collection("clients").doc(this.clientId))
@@ -121,7 +149,11 @@
 				db.collection("clients").doc(this.clientId).update({
 					allowedUsers: firebase.firestore.FieldValue.arrayRemove(userId) as any as string[]
 				} as IClientDocument)
-			}
+            },
+            deleteClient() {
+                db.collection("clients").doc(this.clientId).delete()
+                router.push("/")
+            }
 		}
 
 	})

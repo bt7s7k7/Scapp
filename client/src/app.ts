@@ -111,11 +111,11 @@ getLocalConfig().then(async registerInfo => {
                         }
                     })
 
-                    
+
                     var wsUrl = parse(url)
-                    
+
                     wsUrl.protocol = "wss"
-                    
+
                     console.log(`ngrok connected, url is ${url}, formated as ${format(wsUrl)}`)
                     await setNgrokUrl(registerInfo, format(wsUrl))
 
@@ -147,7 +147,7 @@ getLocalConfig().then(async registerInfo => {
         let commandName = process.argv[2]
         const args = process.argv.slice(3);
 
-        runCommand(commandName, args)
+        await runCommand(commandName, args).catch(errorCatcher)
     } else {
         var repl = createInterface(process.stdin, process.stdout)
 
@@ -157,4 +157,16 @@ getLocalConfig().then(async registerInfo => {
             runCommand(tokens[0], tokens.slice(1))
         })
     }
-})
+}).catch(errorCatcher)
+
+var errorCatcher = err => {
+    if (err instanceof Error) {
+        if (err.message == "Document not found") {
+            console.error(`The database document for this client was not found. It was probably deleted from the website. Run "scapp reset" to fix this problem.`)
+        } else {
+            console.error(err.stack)
+        }
+    } else {
+        console.error(err)
+    }
+}

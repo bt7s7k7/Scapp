@@ -42,7 +42,7 @@ export function executeFunctionRaw(name: string, data: any) {
                 if (message.statusCode == 200)
                     resolve(JSON.parse(dataFragments.join("")))
                 else
-                    reject(dataFragments.join("") || `Error ${message.statusCode} ${message.statusMessage}\n ${message.rawHeaders.map(v => "  " + v).join("\n")}`)
+                    reject(new Error(dataFragments.join("") || `Error ${message.statusCode} ${message.statusMessage}\n ${message.rawHeaders.map(v => "  " + v).join("\n")}`))
             })
         })
 
