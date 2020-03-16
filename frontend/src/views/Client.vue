@@ -74,28 +74,52 @@
 							<v-icon>mdi-delete</v-icon>
 						</v-btn>
 					</template>
-                    <v-card>
-                        <v-card-title primary-title>
-                            Are you sure?
-                        </v-card-title>
-                        <v-card-text>
-                            This will delete this client and all allowed users from the database. 
-                            After this the client's access token will be invalidated and you will
-                            have to run <code>scapp reset</code>.
-                        </v-card-text>
-                        <v-card-actions>
-                            <v-spacer></v-spacer>
-                            <v-btn text @click="deleteDialog = false; deleteClient()">
-                                delete
-                            </v-btn>
-                            <v-btn text color="primary" @click="deleteDialog = false">
-                                cancel
-                            </v-btn>
-                        </v-card-actions>
-                    </v-card>
+					<v-card>
+						<v-card-title primary-title>Are you sure?</v-card-title>
+						<v-card-text>
+							This will delete this client and all allowed users from the database.
+							After this the client's access token will be invalidated and you will
+							have to run
+							<code>scapp reset</code>.
+						</v-card-text>
+						<v-card-actions>
+							<v-spacer></v-spacer>
+							<v-btn text @click="deleteDialog = false; deleteClient()">delete</v-btn>
+							<v-btn text color="primary" @click="deleteDialog = false">cancel</v-btn>
+						</v-card-actions>
+					</v-card>
 				</v-dialog>
 			</v-card-actions>
 		</v-card>
+        <template v-if="connections[client.id] && connections[client.id].state == 'online'">
+		<v-card class="mt-2">
+			<v-card-title primary-title>Actions</v-card-title>
+			<v-card-text>
+				<v-list>
+					<v-list-item-group>
+						<v-list-item
+							v-for="actionId in Object.keys(connections[client.id].runningActions)"
+							:key="actionId"
+                            
+						>
+							<v-list-item-content class="pa-0">{{ connections[client.id].runningActions[actionId].label }}</v-list-item-content>
+							<v-list-item-action  class="my-0">
+								<v-btn small fab text @click="killAction(actionId)">
+									<v-icon>mdi-stop-circle</v-icon>
+								</v-btn>
+							</v-list-item-action>
+						</v-list-item>
+					</v-list-item-group>
+				</v-list>
+			</v-card-text>
+			<v-card-actions>
+				<v-btn small @click="startTerminal()">
+					<v-icon right>mdi-console</v-icon>
+                    Start terminal
+				</v-btn>
+			</v-card-actions>
+		</v-card>
+        </template>
 	</v-container>
 	<v-progress-circular indeterminate color="primary" class="ma-auto" v-else></v-progress-circular>
 </template>
@@ -104,10 +128,10 @@
 	import Vue from 'vue'
 	import { db, authStore } from "../firebase"
 	import { IClientDocument } from "../../../common/types"
-	import { connections, updateConnections } from "../connections"
+	import { connections, updateConnections, requestActionKill, requestStartTerminal } from "../connections"
 	import StatusIndicator from "../components/StatusIndicator.vue"
 	import firebase from "firebase/app"
-import router from '../router'
+	import router from '../router'
 
 	export default Vue.extend({
 		name: "Client",
@@ -149,10 +173,16 @@ import router from '../router'
 				db.collection("clients").doc(this.clientId).update({
 					allowedUsers: firebase.firestore.FieldValue.arrayRemove(userId) as any as string[]
 				} as IClientDocument)
+			},
+			deleteClient() {
+				db.collection("clients").doc(this.clientId).delete()
+				router.push("/")
             },
-            deleteClient() {
-                db.collection("clients").doc(this.clientId).delete()
-                router.push("/")
+            killAction(id: string) {
+                requestActionKill(connections[this.clientId], id)
+            },
+            startTerminal() {
+                requestStartTerminal(connections[this.clientId])
             }
 		}
 

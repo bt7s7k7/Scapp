@@ -8,6 +8,7 @@ import { AddressInfo } from "net";
 import { server as WebSocketServer } from "websocket";
 import { WEBSOCKET_PROTOCOL } from "../../common/types";
 import { parse, format } from "url";
+import { UserSession, startRuntime } from "./runtime";
 
 getLocalConfig().then(async registerInfo => {
     var commands = {
@@ -72,10 +73,12 @@ getLocalConfig().then(async registerInfo => {
         "run": {
             args: 0,
             desc: "run               - Starts ngrok and websocket host, brings the client online",
-            callback: () => {
+            callback: async () => {
                 var server = createServer((request, response) => {
                     response.end("This is a websocket port");
                 })
+
+                await startRuntime()
 
                 server.listen(0, async () => {
                     var port = (server.address() as AddressInfo).port
@@ -93,14 +96,7 @@ getLocalConfig().then(async registerInfo => {
                             request.reject(404, "No supported protocol")
                         } else {
                             var connection = request.accept(WEBSOCKET_PROTOCOL)
-                            
-                            connection.on("message", (data) => {
-
-                            })
-
-                            connection.on("close", (code, desc) => {
-
-                            })
+                            new UserSession(connection, registerInfo)
                         }
                     })
 

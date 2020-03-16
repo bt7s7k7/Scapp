@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions';
 import * as firebase from "firebase-admin"
 firebase.initializeApp()
 var firestore = firebase.firestore()
+var auth = firebase.auth()
 
 import { IClientDocument, ACCESS_TOKEN_LENGHT, IClientRegisterInfo } from "../../../common/types"
 import { randomBytes } from "crypto"
@@ -129,6 +130,29 @@ export const changeClientAllowedUsers = functions.https.onRequest(async (request
                     }).catch(err => {
                         response.status(500).send(err.toString())
                     })
+            } else {
+                response.status(403).send("Wrong access token")
+            }
+        } else {
+            response.status(404).send("Document not found")
+        }
+    } else {
+        response.status(400).send("Invalid request body")
+    }
+})
+
+export const verifyUserToken = functions.https.onRequest(async (request, response) => {
+    var data = request.body as IClientRegisterInfo & { token: string }
+    if ("id" in data && "accessToken" in data && "token" in data) {
+        let doc = await firestore.collection("clients").doc(data.id).get()
+        if (doc.exists) {
+            const docData = doc.data() as IClientDocument
+            if (docData.accessToken == docData.accessToken) {
+                auth.verifyIdToken(data.token).then(decoded => {
+                    response.status(200).send({ valid: true, reason: "" })
+                }).catch(err => {
+                    response.status(200).send({ valid: false, reason: err })
+                })
             } else {
                 response.status(403).send("Wrong access token")
             }

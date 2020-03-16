@@ -85,3 +85,10 @@ export function setNgrokUrl(info: IClientRegisterInfo, url: string) {
         url
     })
 }
+
+export function verifyIDToken(info: IClientRegisterInfo, token: string): Promise<{ valid: boolean, reason: string }> {
+    return executeFunctionRaw("verifyUserToken", {
+        ...info,
+        token
+    })
+}
