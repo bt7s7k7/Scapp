@@ -6,7 +6,7 @@
 				<v-toolbar-title>Scapp</v-toolbar-title>
 				<v-divider vertical inset class="mx-4"></v-divider>
 				<template v-for="(page, index) in path">
-					<v-btn :href="page.path" text class="text-capitalize" :key="index">{{ page.label }}</v-btn>
+					<v-btn :to="page.path" text class="text-capitalize" :key="index">{{ page.label }}</v-btn>
 					<span class="mx-1" :key="index" v-if="index != path.length - 1">></span>
 				</template>
 				<v-spacer></v-spacer>

@@ -2,14 +2,12 @@
 	<v-container class="my-5">
 		<v-card class="mx-auto" v-for="client in clients" :key="client.id" max-width="400">
 			<v-card-title>{{ client.name }}</v-card-title>
-            <v-card-actions>
-                <status-indicator :status="connections[client.id]" ></status-indicator>
-                <span class="grey--text">{{ client.url }}</span>
-                <v-spacer></v-spacer>
-                <router-link :to="client.id" v-slot="{ href, navigate }">
-                    <v-btn text :href="href" @click="navigate">view</v-btn>
-                </router-link>
-            </v-card-actions>
+			<v-card-actions>
+				<status-indicator :status="connections[client.id].state"></status-indicator>
+				<span class="grey--text">{{ client.url }}</span>
+				<v-spacer></v-spacer>
+				<v-btn text :to="client.id">view</v-btn>
+			</v-card-actions>
 		</v-card>
 	</v-container>
 </template>
