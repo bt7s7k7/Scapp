@@ -1,14 +1,15 @@
 import { connection as Connection } from "websocket"
 import { IFrontendResponse, IFrontendRequest, IRunningActionInfo, IClientRegisterInfo } from "../../common/types"
-import { ChildProcess, spawn, SpawnOptionsWithoutStdio } from "child_process"
 import { verifyIDToken } from "./functions"
+import { spawn, IPty, IPtyForkOptions } from "node-pty"
+import { homedir } from "os"
 
 export const DEFAULT_SHELL = process.env.COMSPEC || process.env.SHELL
 
 interface IRunningAction {
     name: string,
     label: string,
-    process: ChildProcess,
+    process: IPty,
     history: string[],
     subscribed: string[]
 }
@@ -16,7 +17,8 @@ interface IRunningAction {
 interface IAction {
     name: string,
     command: string,
-    setting: SpawnOptionsWithoutStdio,
+    cwd: string,
+    env: { [index: string]: string }
     label: string
 }
 
@@ -32,15 +34,20 @@ export async function startRuntime() {
 }
 
 export async function startAction(context: string, action: IAction) {
-    var process = spawn(action.command, {
-        ...action.setting,
-        stdio: "pipe"
+    var process = spawn(DEFAULT_SHELL, [], {
+        cwd: action.cwd,
+        env: {...action.env, ...global.process.env},
+        cols: 145,
+        rows: 30
     })
+
+    process.write(action.command + "& exit\n\r")
+
     var runningAction = {
         history: [],
         name: context + "/" + action.name,
         process,
-        label: "Terminal",
+        label: action.label,
         subscribed: []
     } as IRunningAction
 
@@ -53,8 +60,7 @@ export async function startAction(context: string, action: IAction) {
         })
     }
 
-    process.stdout.on("data", onOut)
-    process.stderr.on("data", onOut)
+    process.on("data", onOut)
 
     process.on("exit", () => {
         delete runningActions[runningAction.name]
@@ -109,8 +115,24 @@ export class UserSession {
                             startAction("_terminal", {
                                 command: DEFAULT_SHELL,
                                 name: actionId,
-                                setting: {},
-                                label: "Terminal " + actionId
+                                cwd: homedir(),
+                                env: {},
+                                label: "Terminal"
+                            })
+                        }
+                        
+                        if (request.quickCommand) {
+                            let actionId = request.quickCommand
+                            while ("_quick/" + actionId in runningActions) {
+                                actionId = Math.random().toString().substr(2)
+                            }
+    
+                            startAction("_quick", {
+                                command: request.quickCommand,
+                                name: actionId,
+                                cwd: homedir(),
+                                env: {},
+                                label: request.quickCommand
                             })
                         }
 
@@ -123,6 +145,7 @@ export class UserSession {
 
                             unsubsribe()
                             this.subscribedTo = request.subscribe
+                            target.subscribed.push(id)
 
                             target.history = [target.history.join("")]
                             response.actionTerminalHistory = {
@@ -141,6 +164,16 @@ export class UserSession {
                             delete runningActions[request.killAction]
                             target.process.kill()
                             Object.values(activeSessions).forEach(v => v.sendRunningActions())
+                        }
+
+                        if (request.sendInput) {
+                            var target = runningActions[request.sendInput.id]
+                            if (!target) {
+                                sendError(`Requested running action ${request.sendInput.id} to write to not found`)
+                                return
+                            }
+                            
+                            target.process.write(request.sendInput.data)
                         }
                     }
 

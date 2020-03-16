@@ -2,7 +2,7 @@ import { IClientDocument, WEBSOCKET_PROTOCOL, IFrontendRequest, IFrontendRespons
 import Vue from "vue"
 import { authStore, auth } from './firebase'
 
-interface IFrontendRunningAction {
+export interface IFrontendRunningAction {
     history: string[]
     label: string
     name: string
@@ -75,18 +75,35 @@ function createWebsocket(client: IClientDocument & { id: string }, connection: I
             }
 
             if (response.runningActions) {
-                Vue.set(connection, "runningActions", {})
-                Object.values(response.runningActions).forEach(v=>{
+                var sent = response.runningActions.map(v => {
+                    var history = connection.runningActions[v.id]?.history
                     Vue.set(connection.runningActions, v.id, {
-                        history: [],
+                        history: history ?? [],
                         label: v.label,
                         name: v.id
                     } as IFrontendRunningAction)
+                    return v.id
                 })
+
+                Object.keys(connection.runningActions).filter(v=>sent.indexOf(v) == -1).forEach(v=>Vue.delete(connection.runningActions, v))
             }
 
             if (response.err) {
                 console.error("Client error: " + response.err)
+            }
+
+            if (response.actionTerminalHistory) {
+                var targetAction = connection.runningActions[response.actionTerminalHistory.id]
+                if (targetAction) {
+                    Vue.set(connection.runningActions[response.actionTerminalHistory.id], "history", [response.actionTerminalHistory.history])
+                }
+            }
+
+            if (response.actionTerminalOut) {
+                var targetAction = connection.runningActions[response.actionTerminalOut.id]
+                if (targetAction) {
+                    connection.runningActions[response.actionTerminalOut.id].history.push(response.actionTerminalOut.line)
+                }
             }
         })
 
@@ -115,4 +132,16 @@ export function requestActionKill(connection: IConnection, actionName: string) {
 
 export function requestStartTerminal(connection: IConnection) {
     connection.websocket?.send(JSON.stringify({ startTerminal: true } as IFrontendRequest))
+}
+
+export function sendData(connection: IConnection, actionName: string, data: string) {
+    connection.websocket?.send(JSON.stringify({ sendInput: { data, id: actionName } } as IFrontendRequest))
+}
+
+export function subscribeTo(connection: IConnection, actionName: string) {
+    connection.websocket?.send(JSON.stringify({ subscribe: actionName } as IFrontendRequest))
+}
+
+export function quickCommand(connection: IConnection, command: string) {
+    connection.websocket?.send(JSON.stringify({ quickCommand: command } as IFrontendRequest))
 }

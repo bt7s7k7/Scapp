@@ -20,7 +20,12 @@ export interface IFrontendRequest {
     startTerminal: boolean,
     idToken: string,
     subscribe: string,
-    killAction: string
+    killAction: string,
+    sendInput: {
+        id: string,
+        data: string
+    },
+    quickCommand: string
 }
 
 export interface IRunningActionInfo {

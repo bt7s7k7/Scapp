@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
-    "build": "vue-cli-service build"
+    "build": "vue-cli-service build",
+    "deploy": "npm run build && firebase deploy"
   },
   "dependencies": {
     "firebase": "^7.10.0",
@@ -15,7 +16,8 @@
     "vue-property-decorator": "^8.3.0",
     "vue-router": "^3.1.5",
     "vuefire": "^2.2.1",
-    "vuetify": "^2.2.11"
+    "vuetify": "^2.2.11",
+    "xterm": "^4.4.0"
   },
   "devDependencies": {
     "@vue/cli-plugin-pwa": "~4.2.0",

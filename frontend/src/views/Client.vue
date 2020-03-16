@@ -91,35 +91,48 @@
 				</v-dialog>
 			</v-card-actions>
 		</v-card>
-        <template v-if="connections[client.id] && connections[client.id].state == 'online'">
-		<v-card class="mt-2">
-			<v-card-title primary-title>Actions</v-card-title>
-			<v-card-text>
-				<v-list>
-					<v-list-item-group>
-						<v-list-item
-							v-for="actionId in Object.keys(connections[client.id].runningActions)"
-							:key="actionId"
-                            
-						>
-							<v-list-item-content class="pa-0">{{ connections[client.id].runningActions[actionId].label }}</v-list-item-content>
-							<v-list-item-action  class="my-0">
-								<v-btn small fab text @click="killAction(actionId)">
-									<v-icon>mdi-stop-circle</v-icon>
-								</v-btn>
-							</v-list-item-action>
-						</v-list-item>
-					</v-list-item-group>
-				</v-list>
-			</v-card-text>
-			<v-card-actions>
-				<v-btn small @click="startTerminal()">
-					<v-icon right>mdi-console</v-icon>
-                    Start terminal
-				</v-btn>
-			</v-card-actions>
-		</v-card>
-        </template>
+		<template v-if="connections[client.id] && connections[client.id].state == 'online'">
+			<v-card class="mt-2">
+				<v-card-title primary-title>Actions</v-card-title>
+				<v-card-text>
+					<v-list>
+						<v-list-item-group>
+							<v-list-item
+								v-for="actionId in Object.keys(connections[client.id].runningActions)"
+								:key="actionId"
+								@click="openXterm(actionId)"
+							>
+								<v-list-item-content class="pa-0">
+									<span>{{ connections[client.id].runningActions[actionId].label }}</span>
+									<span class="grey--text">{{actionId}}</span>
+								</v-list-item-content>
+								<v-list-item-action class="my-0">
+									<v-btn
+										small
+										fab
+										text
+										@click.prevent.stop="killAction(actionId)"
+										@mousedown.stop
+										@touchstart.native.stop
+									>
+										<v-icon>mdi-stop-circle</v-icon>
+									</v-btn>
+								</v-list-item-action>
+							</v-list-item>
+						</v-list-item-group>
+					</v-list>
+				</v-card-text>
+				<v-card-actions>
+					<v-btn small @click="startTerminal()">
+						<v-icon right>mdi-console</v-icon>Start terminal
+					</v-btn>
+				</v-card-actions>
+			</v-card>
+
+			<v-dialog v-model="terminalDialog" width="1160px">
+				<div id="xterm" style="height: 510px; width: 1160px"></div>
+			</v-dialog>
+		</template>
 	</v-container>
 	<v-progress-circular indeterminate color="primary" class="ma-auto" v-else></v-progress-circular>
 </template>
@@ -128,10 +141,12 @@
 	import Vue from 'vue'
 	import { db, authStore } from "../firebase"
 	import { IClientDocument } from "../../../common/types"
-	import { connections, updateConnections, requestActionKill, requestStartTerminal } from "../connections"
+	import { connections, updateConnections, requestActionKill, requestStartTerminal, IConnection, IFrontendRunningAction, sendData, subscribeTo, quickCommand } from "../connections"
 	import StatusIndicator from "../components/StatusIndicator.vue"
 	import firebase from "firebase/app"
 	import router from '../router'
+	import { Terminal } from "xterm"
+	import "xterm/css/xterm.css"
 
 	export default Vue.extend({
 		name: "Client",
@@ -145,10 +160,16 @@
 			userAddDialog: false,
 			userIdToAdd: "",
 			authStore,
-			deleteDialog: false
+			deleteDialog: false,
+			terminalDialog: false,
+			terminalTarget: "",
+			terminal: null as Terminal | null,
+			terminalLastLine: 0
 		}),
-		mounted(this: Vue & any) {
+		mounted(this: Vue & { terminal: Terminal } & { [index: string]: any }) {
 			this.$bind("client", db.collection("clients").doc(this.clientId))
+			// @ts-ignore
+			window["clientView"] = this
 		},
 		props: {
 			clientId: String
@@ -161,6 +182,27 @@
 		watch: {
 			client() {
 				updateConnections([this.client])
+			},
+			connections: {
+				handler() {
+					if (this.connections[this.clientId].state != "online") {
+						this.terminal = null
+						this.terminalDialog = false
+						this.terminalTarget = ""
+					} else if (this.terminal && !(this.terminalTarget in this.connections[this.clientId].runningActions)) {
+						this.terminal = null
+						this.terminalDialog = false
+						this.terminalTarget = ""
+					} else if (this.terminal) {
+						var action = this.connections[this.clientId].runningActions[this.terminalTarget] as IFrontendRunningAction
+
+						while (action.history.length > this.terminalLastLine) {
+							this.terminal.write(action.history[this.terminalLastLine])
+							this.terminalLastLine++
+						}
+					}
+				},
+				deep: true
 			}
 		},
 		methods: {
@@ -177,13 +219,62 @@
 			deleteClient() {
 				db.collection("clients").doc(this.clientId).delete()
 				router.push("/")
-            },
-            killAction(id: string) {
-                requestActionKill(connections[this.clientId], id)
-            },
-            startTerminal() {
-                requestStartTerminal(connections[this.clientId])
-            }
+			},
+			killAction(id: string) {
+				requestActionKill(connections[this.clientId], id)
+			},
+			quickCommand(command: string) {
+				quickCommand(connections[this.clientId], command)
+			},
+			startTerminal() {
+				requestStartTerminal(connections[this.clientId])
+			},
+			openXterm(action: string) {
+				this.terminal = new Terminal({
+					cols: 145,
+					rows: 30
+				})
+
+				this.terminalDialog = true
+				this.terminalTarget = action
+
+				var startTime = Date.now()
+				var open = () => {
+					var termDiv = document.getElementById("xterm") as HTMLDivElement
+					if (!termDiv) {
+						if (this.terminal) {
+							if (Date.now() - startTime < 100) {
+								this.$nextTick(open)
+							} else {
+								throw new Error("Failed to find element for xterm")
+							}
+						}
+					} else {
+						this.$nextTick(() => {
+
+						})
+					}
+				}
+
+				setTimeout(() => {
+					var termDiv = document.getElementById("xterm") as HTMLDivElement
+					termDiv.childNodes.forEach(v => v.remove())
+					if (this.terminal) {
+						this.terminal.open(termDiv)
+						this.terminal.onData((data) => {
+							sendData(this.connections[this.clientId], this.terminalTarget, data)
+						})
+
+						var term = this.terminal as Terminal
+						var connection = this.connections[this.clientId] as IConnection
+						var targetAction = connection.runningActions[action]
+						term.clear()
+						this.terminalLastLine = 0
+					}
+				}, 200)
+				open()
+				subscribeTo(this.connections[this.clientId], action)
+			}
 		}
 
 	})
