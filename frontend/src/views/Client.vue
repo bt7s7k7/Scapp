@@ -1,12 +1,74 @@
 <template>
-	<v-container class="mx-5" v-if="!('loading' in $data)">
+	<v-container class="mx-5" v-if="!('loading' in $data) && client.id in connections">
 		<v-card class="mx-auto">
-			<v-card-title primary-title>{{ client.name }}</v-card-title>
-            <v-card-actions>
-                <status-indicator :status="connections[client.id]" ></status-indicator>
-                <span class="grey--text">{{ client.url }}</span>
-                <v-spacer></v-spacer>
-            </v-card-actions>
+			<v-card-title primary-title>
+				<span class="display-3">{{ client.name }}</span>
+			</v-card-title>
+			<v-card-actions>
+				<status-indicator :status="connections[client.id].state"></status-indicator>
+				<span class="grey--text">{{ client.url }}</span>
+				<v-spacer></v-spacer>
+				<v-dialog v-model="usersDialog" max-width="500px">
+					<template v-slot:activator="{ on }">
+						<v-btn fab small text slot="activator" v-on="on">
+							<v-icon>mdi-account-multiple-plus</v-icon>
+						</v-btn>
+					</template>
+					<v-card>
+						<v-card-title>
+							<span class="headline">Allowed users</span>
+						</v-card-title>
+						<v-card-text>
+							<v-list>
+								<v-list-item-group>
+									<v-list-item v-for="user in client.allowedUsers" :key="user">
+										<v-list-item-content>
+											<v-list-item-title>
+												<span :class="user == authStore.currentUser.uid ? 'green--text' : ''">{{ user }}</span>
+											</v-list-item-title>
+										</v-list-item-content>
+										<v-list-item-action>
+											<v-btn fab text small @click="removeUser(user)">
+												<v-icon>mdi-account-remove</v-icon>
+											</v-btn>
+										</v-list-item-action>
+									</v-list-item>
+								</v-list-item-group>
+							</v-list>
+						</v-card-text>
+						<v-card-actions>
+							<v-dialog v-model="userAddDialog" max-width="400">
+								<template v-slot:activator="{ on }">
+									<v-btn v-on="on" text fab small>
+										<v-icon>mdi-account-plus</v-icon>
+									</v-btn>
+								</template>
+								<v-card>
+									<v-card-title>
+										<span class="headline">Add user</span>
+									</v-card-title>
+									<v-form @submit="$event.preventDefault()">
+										<v-card-text>
+											<v-text-field name="userId" label="User ID" id="userId" v-model="userIdToAdd"></v-text-field>
+										</v-card-text>
+										<v-card-actions>
+											<v-spacer></v-spacer>
+											<v-btn
+												text
+												@click="addUser(userIdToAdd); userAddDialog = false; userIdToAdd = ''"
+												type="submit"
+											>add</v-btn>
+											<v-btn text @click="userAddDialog = false; userIdToAdd = ''">cancel</v-btn>
+										</v-card-actions>
+									</v-form>
+								</v-card>
+							</v-dialog>
+							<v-spacer></v-spacer>
+							<v-btn text @click.native="usersDialog = false">Save</v-btn>
+						</v-card-actions>
+					</v-card>
+				</v-dialog>
+			</v-card-actions>
 		</v-card>
 	</v-container>
 	<v-progress-circular indeterminate color="primary" class="ma-auto" v-else></v-progress-circular>
@@ -14,36 +76,53 @@
 
 <script lang="ts">
 	import Vue from 'vue'
-	import { db } from "../firebase"
-    import { IClientDocument } from "../../../common/types"
-    import { connections, updateConnections } from "../connections"
-    import StatusIndicator from "../components/StatusIndicator.vue"
+	import { db, authStore } from "../firebase"
+	import { IClientDocument } from "../../../common/types"
+	import { connections, updateConnections } from "../connections"
+	import StatusIndicator from "../components/StatusIndicator.vue"
+	import firebase from "firebase/app"
 
 	export default Vue.extend({
-        name: "Client",
-        components: {
-            StatusIndicator
-        },
+		name: "Client",
+		components: {
+			StatusIndicator
+		},
 		data: () => ({
-            client: { loading: true } as IClientDocument & { id: string, loading: true | null },
-            connections
+			client: { loading: true } as IClientDocument & { id: string, loading: true | null },
+			connections,
+			usersDialog: false,
+			userAddDialog: false,
+			userIdToAdd: "",
+			authStore
 		}),
 		mounted(this: Vue & any) {
 			this.$bind("client", db.collection("clients").doc(this.clientId))
 		},
 		props: {
 			clientId: String
-        },
-        computed: {
-            connection(this: any) {
-                return connections[this.clientId]
-            }
-        },
-        watch: {
-            client() {
-                updateConnections([this.client])
-            }    
-        }
+		},
+		computed: {
+			connection(this: any) {
+				return connections[this.clientId]
+			}
+		},
+		watch: {
+			client() {
+				updateConnections([this.client])
+			}
+		},
+		methods: {
+			addUser(userId: string) {
+				db.collection("clients").doc(this.clientId).update({
+					allowedUsers: firebase.firestore.FieldValue.arrayUnion(userId) as any as string[]
+				} as IClientDocument)
+			},
+			removeUser(userId: string) {
+				db.collection("clients").doc(this.clientId).update({
+					allowedUsers: firebase.firestore.FieldValue.arrayRemove(userId) as any as string[]
+				} as IClientDocument)
+			}
+		}
 
 	})
 </script>

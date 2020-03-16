@@ -41,10 +41,10 @@
 
 		data: () => ({
 			authStore,
-            auth,
-            path: [
-                {label: "Root", path: "/"}
-            ] as { label: string, path: "/" }[]
+			auth,
+			path: [
+				{ label: "Root", path: "/" }
+			] as { label: string, path: "/" }[]
 		}),
 
 		watch: {

@@ -17,28 +17,28 @@
 	import * as firebaseui from "firebaseui"
 	import Vue from "vue"
 	import { db } from "../firebase"
-    import { IClientDocument } from "../../../common/types"
-    import { updateConnections, connections } from "../connections"
-    import StatusIndicator from "../components/StatusIndicator.vue"
+	import { IClientDocument } from "../../../common/types"
+	import { updateConnections, connections } from "../connections"
+	import StatusIndicator from "../components/StatusIndicator.vue"
 
 	export default Vue.extend({
 		name: "Home",
 		components: {
-            StatusIndicator
-        },
+			StatusIndicator
+		},
 		data: () => ({
 			auth: authStore,
-            clients: [] as (IClientDocument & { id: string })[],
-            connections
+			clients: [] as (IClientDocument & { id: string })[],
+			connections
 		}),
 		mounted(this: Vue) {
-            if (!authStore.currentUser) return
+			if (!authStore.currentUser) return
 			this.$bind("clients", db.collection("clients").where("allowedUsers", "array-contains", authStore.currentUser.uid))
-        },
-        watch: {
-            clients() {
-                updateConnections(this.clients)
-            }    
-        }
+		},
+		watch: {
+			clients() {
+				updateConnections(this.clients)
+			}
+		}
 	})
 </script>
