@@ -1,4 +1,4 @@
-#!/usr/bin/env n
+#!/usr/bin/env node
 import { getLocalConfig, resetLocalConfig, saveLocalConfig } from "./config";
 import { getConfig, rename, changeAllowedUsers, setNgrokUrl } from "./functions";
 import { createInterface } from "readline";
