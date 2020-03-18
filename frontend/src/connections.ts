@@ -1,4 +1,4 @@
-import { IClientDocument, WEBSOCKET_PROTOCOL, IFrontendRequest, IFrontendResponse } from "../../common/types"
+import { IClientDocument, WEBSOCKET_PROTOCOL, IFrontendRequest, IFrontendResponse, ITask } from "../../common/types"
 import Vue from "vue"
 import { authStore, auth } from './firebase'
 
@@ -16,7 +16,8 @@ export interface IConnection {
     runningActions: {
         [index: string]: IFrontendRunningAction
     },
-    verified: boolean
+    verified: boolean,
+    tasks: { [index: string]: ITask }
 }
 
 export const connections = {} as { [index: string]: IConnection }
@@ -27,7 +28,8 @@ function createConnection(client: IClientDocument & { id: string }) {
         id: client.id,
         url: client.url,
         runningActions: {},
-        verified: false
+        verified: false,
+        tasks: {}
     } as IConnection
 
     createWebsocket(client, connection)
@@ -105,6 +107,10 @@ function createWebsocket(client: IClientDocument & { id: string }, connection: I
                     connection.runningActions[response.actionTerminalOut.id].history.push(response.actionTerminalOut.line)
                 }
             }
+
+            if (response.tasks) {
+                Vue.set(connection, "tasks", response.tasks)
+            }
         })
 
         Vue.set(connection, "websocket", websocket)
@@ -130,8 +136,16 @@ export function requestActionKill(connection: IConnection, actionName: string) {
     connection.websocket?.send(JSON.stringify({ killAction: actionName } as IFrontendRequest))
 }
 
-export function requestStartTerminal(connection: IConnection) {
-    connection.websocket?.send(JSON.stringify({ startTerminal: true } as IFrontendRequest))
+export function requestStartAction(connection: IConnection, actionName: string) {
+    connection.websocket?.send(JSON.stringify({ startAction: actionName } as IFrontendRequest))
+}
+
+export function requestStartTerminal(connection: IConnection, cwd: string | true = true) {
+    connection.websocket?.send(JSON.stringify({ startTerminal: cwd } as IFrontendRequest))
+}
+
+export function requestRefreshTasks(connection: IConnection) {
+    connection.websocket?.send(JSON.stringify({ rescanTasks: true } as IFrontendRequest))
 }
 
 export function sendData(connection: IConnection, actionName: string, data: string) {

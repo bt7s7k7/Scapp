@@ -106,7 +106,7 @@
 									<span>{{ connections[client.id].runningActions[actionId].label }}</span>
 									<span class="grey--text">{{actionId}}</span>
 								</v-list-item-content>
-								<v-list-item-action class="my-0">
+								<v-list-item-action class="my-0" v-if="actionId != '_internal@log'">
 									<v-btn
 										small
 										fab
@@ -122,25 +122,15 @@
 						</v-list-item-group>
 					</v-list>
 				</v-card-text>
-				<v-card-actions>
+				<v-card-actions style="overflow: auto">
 					<v-btn small @click="startTerminal()">
 						<v-icon right>mdi-console</v-icon>new shell
 					</v-btn>
-					<v-btn small @click="quickCommand('_exit')">
-						kill process
-					</v-btn>
-					<v-btn small @click="quickCommand('_restart')">
-						restart process
-					</v-btn>
-					<v-btn small @click="quickCommand('_shutdown')">
-						shutdown
-					</v-btn>
-					<v-btn small @click="quickCommand('_reboot')">
-						reboot
-					</v-btn>
-					<v-btn small @click="quickCommand('_lock')">
-						lock
-					</v-btn>
+					<v-btn small @click="quickCommand('_exit')">kill process</v-btn>
+					<v-btn small @click="quickCommand('_restart')">restart process</v-btn>
+					<v-btn small @click="quickCommand('_shutdown')">shutdown</v-btn>
+					<v-btn small @click="quickCommand('_reboot')">reboot</v-btn>
+					<v-btn small @click="quickCommand('_lock')">lock</v-btn>
 				</v-card-actions>
 			</v-card>
 
@@ -148,6 +138,44 @@
 				<div id="xterm" style="height: 510px"></div>
 				<v-btn id="terminalCloseButton" text dark @click="terminalDialog = false">close</v-btn>
 			</v-dialog>
+
+			<v-card v-for="({task, actions}, taskId) in tasks" :key="taskId" class="mt-2">
+				<v-card-title>
+					{{ task.label }}
+					<span class="grey--text ml-1" v-if="task.label != taskId">{{ taskId }}</span>
+					<v-btn small text fab @click="refreshTasks()">
+						<v-icon>mdi-refresh</v-icon>
+					</v-btn>
+					<v-btn small text fab @click="startTerminal(task.path)">
+						<v-icon>mdi-console</v-icon>
+					</v-btn>
+				</v-card-title>
+				<v-card-text>
+					<v-list>
+						<v-list-item-group v-for="(actions, prefix) in actions" :key="prefix">
+							<v-subheader v-if="prefix != ''" class="headline black--text">{{ prefix }}</v-subheader>
+							<v-list-item v-for="action in actions" :key="action.name">
+								<v-list-item-avatar>
+									<v-icon>{{ getActionIcon(action.label) }}</v-icon>
+									<v-progress-circular
+										indeterminate
+										color="primary"
+										v-if="taskId + '@' + action.name in connection.runningActions"
+                                        class="progress-float"
+									></v-progress-circular>
+								</v-list-item-avatar>
+								<v-list-item-content @click="runAction(taskId + '@' + action.name)">
+									{{ action.label }}
+									<span
+										class="grey--text"
+										v-if="action.label != action.name"
+									>{{ action.name }}</span>
+								</v-list-item-content>
+							</v-list-item>
+						</v-list-item-group>
+					</v-list>
+				</v-card-text>
+			</v-card>
 		</template>
 	</v-container>
 	<v-progress-circular indeterminate color="primary" class="ma-auto" v-else></v-progress-circular>
@@ -176,13 +204,19 @@
 		height: 30px;
 		width: 50px;
 	}
+
+    .progress-float {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+    }
 </style>
 
 <script lang="ts">
 	import Vue from 'vue'
 	import { db, authStore } from "../firebase"
-	import { IClientDocument } from "../../../common/types"
-	import { connections, updateConnections, requestActionKill, requestStartTerminal, IConnection, IFrontendRunningAction, sendData, subscribeTo, quickCommand } from "../connections"
+	import { IClientDocument, IAction, ITask } from "../../../common/types"
+	import { connections, updateConnections, requestActionKill, requestStartTerminal, IConnection, IFrontendRunningAction, sendData, subscribeTo, quickCommand, requestRefreshTasks, requestStartAction } from "../connections"
 	import StatusIndicator from "../components/StatusIndicator.vue"
 	import firebase from "firebase/app"
 	import router from '../router'
@@ -205,7 +239,19 @@
 			terminalDialog: false,
 			terminalTarget: "",
 			terminal: null as Terminal | null,
-			terminalLastLine: 0
+			terminalLastLine: 0,
+			actionIcons: {
+				"start": "mdi-play-circle",
+				"serve": "mdi-access-point-network",
+				"build": "mdi-wrench",
+				"deploy": "mdi-cloud-upload",
+				"shell": "mdi-console",
+				"publish": "mdi-publish",
+				"firebase": "mdi-firebase",
+				"test": "mdi-test-tube",
+				"log": "mdi-text-box-outline",
+				"logs": "mdi-text-box-outline"
+			} as { [index: string]: string }
 		}),
 		mounted(this: Vue & { terminal: Terminal } & { [index: string]: any }) {
 			this.$bind("client", db.collection("clients").doc(this.clientId))
@@ -217,7 +263,24 @@
 		},
 		computed: {
 			connection(this: any) {
-				return connections[this.clientId]
+				return this.connections[this.clientId]
+			},
+			tasks() {
+				if (!this.connection) return {}
+				var ret = {} as { [index: string]: { actions: { [index: string]: IAction[] }, task: ITask } }
+				Object.values(this.connection.tasks).forEach((task: ITask) => {
+					let target = (ret[task.id] = { task, actions: {} }).actions as { [index: string]: IAction[] }
+
+					task.actions.forEach((v: IAction) => {
+						var split = v.name.lastIndexOf("/")
+						var prefix = v.name.substr(0, split)
+
+						if (!(prefix in target)) target[prefix] = []
+						target[prefix].push(v)
+					})
+				})
+
+				return ret
 			}
 		},
 		watch: {
@@ -267,8 +330,17 @@
 			quickCommand(command: string) {
 				quickCommand(connections[this.clientId], command)
 			},
-			startTerminal() {
-				requestStartTerminal(connections[this.clientId])
+			startTerminal(cwd: string | true = true) {
+				requestStartTerminal(connections[this.clientId], cwd)
+			},
+			refreshTasks() {
+				requestRefreshTasks(connections[this.clientId])
+			},
+			runAction(name: string) {
+				if (!(name in connections[this.clientId].runningActions))
+                    requestStartAction(connections[this.clientId], name)
+                else 
+                    this.openXterm(name)
 			},
 			openXterm(action: string) {
 				this.terminal = new Terminal({
@@ -315,6 +387,11 @@
 				}, 200)
 				open()
 				subscribeTo(this.connections[this.clientId], action)
+			},
+			getActionIcon(label: string) {
+				var labelParts = label.split(/\/|\s/g)
+				var icon = this.actionIcons[labelParts[labelParts.length - 1].toLowerCase()] as string
+				return icon ?? "mdi-help"
 			}
 		}
 

@@ -12,12 +12,13 @@ export interface IClientRegisterInfo {
 }
 
 export interface IClientLocalConfig extends IClientRegisterInfo {
-    
+    taskPaths: string[],
+    clonePath: string
 }
 
 export interface IFrontendRequest {
     listRunning: boolean,
-    startTerminal: boolean,
+    startTerminal: string | boolean,
     idToken: string,
     subscribe: string,
     killAction: string,
@@ -25,7 +26,9 @@ export interface IFrontendRequest {
         id: string,
         data: string
     },
-    quickCommand: string
+    quickCommand: string,
+    rescanTasks: boolean,
+    startAction: string
 }
 
 export interface IRunningActionInfo {
@@ -44,7 +47,24 @@ export interface IFrontendResponse {
     actionTerminalHistory: {
         id: string,
         history: string
-    }
+    },
+    tasks: { [index: string]: ITask }
+}
+
+export interface IAction {
+    name: string,
+    command: string,
+    cwd: string,
+    env: { [index: string]: string }
+    label: string
+}
+
+export interface ITask {
+    id: string,
+    label: string,
+    actions: IAction[],
+    path: string,
+    icon: string
 }
 
 export const ACCESS_TOKEN_LENGHT = 256

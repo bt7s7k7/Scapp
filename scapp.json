@@ -1,0 +1,19 @@
+{
+    "label": "Scapp",
+    "icon": "./frontend/public/images/icons/favicon-32x32.png",
+    "actions": [
+        {
+            "name": "test",
+            "label": "Test",
+            "command": "cmd",
+            "env": {
+                "TESTING_KEY": "testing value"
+            }
+        }
+    ],
+    "import": [
+        "client",
+        "firebase",
+        "frontend"
+    ]
+}

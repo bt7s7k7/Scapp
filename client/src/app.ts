@@ -1,5 +1,5 @@
 #!/usr/bin/env n
-import { getLocalConfig, resetRegisterData } from "./config";
+import { getLocalConfig, resetLocalConfig, saveLocalConfig } from "./config";
 import { getConfig, rename, changeAllowedUsers, setNgrokUrl } from "./functions";
 import { createInterface } from "readline";
 import { connect } from "ngrok";
@@ -8,61 +8,62 @@ import { AddressInfo } from "net";
 import { server as WebSocketServer } from "websocket";
 import { WEBSOCKET_PROTOCOL } from "../../common/types";
 import { parse, format } from "url";
-import { UserSession, startRuntime, RESTART_EXIT_CODE } from "./runtime";
+import { UserSession, startRuntime, RESTART_EXIT_CODE, log } from "./runtime";
 import { spawn } from "child_process";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { inspect } from "util";
 
-getLocalConfig().then(async registerInfo => {
+getLocalConfig().then(async localConfig => {
     var commands = {
         "allowed": {
             args: 0,
             callback: async () => {
-                var config = await getConfig(registerInfo)
-                console.log(config.allowedUsers.join("\n"))
+                var config = await getConfig(localConfig)
+                log(config.allowedUsers.join("\n"))
             },
             desc: "allowed           - Get userids of allowed users"
         },
         "id": {
             args: 0,
             callback: () => {
-                console.log(registerInfo.id)
+                log(localConfig.id)
             },
             desc: "id                - Returns the id of this client"
         },
         "token": {
             args: 0,
             callback: () => {
-                console.log(registerInfo.accessToken)
+                log(localConfig.accessToken)
             },
             desc: "token             - Returns the access token of this client"
         },
         "allow": {
             args: 1,
             callback: ([name]) => {
-                return changeAllowedUsers(registerInfo, [name], [])
+                return changeAllowedUsers(localConfig, [name], [])
             },
             desc: "allow <userid>    - Allows the userid access to this client"
         },
         "disallow": {
             args: 1,
             callback: ([name]) => {
-                return changeAllowedUsers(registerInfo, [], [name])
+                return changeAllowedUsers(localConfig, [], [name])
             },
             desc: "disallow <userid> - Removes the userid from allowed users"
         },
         "reset": {
             args: 0,
             callback: () => {
-                return resetRegisterData()
+                return resetLocalConfig()
             },
             desc: "reset             - Creates a new client, with a new id, access token and no allowed users"
         },
         "name": {
             args: 0,
             callback: async () => {
-                var config = await getConfig(registerInfo)
-                console.log(config.name)
+                var config = await getConfig(localConfig)
+                log(config.name)
             },
             desc: "name              - Returns the name of this client"
         },
@@ -70,7 +71,7 @@ getLocalConfig().then(async registerInfo => {
             args: 1,
             desc: "rename <name>     - Changes the name of this client",
             callback: ([name]) => {
-                return rename(registerInfo, name)
+                return rename(localConfig, name)
             }
         },
         "_run_direct": {
@@ -81,18 +82,18 @@ getLocalConfig().then(async registerInfo => {
                     response.end("This is a websocket port");
                 })
 
-                await startRuntime()
+                await startRuntime(localConfig)
 
                 server.listen(0, async () => {
                     try {
                         var port = (server.address() as AddressInfo).port
-                        console.log(`Server listening on port ${port}`)
+                        log(`Server listening on port ${port}`)
 
                         var websocketServer = new WebSocketServer({
                             httpServer: server
                         })
 
-                        console.log("Websocket started")
+                        log("Websocket started")
 
                         websocketServer.on("request", request => {
                             var canAccept = request.requestedProtocols.indexOf(WEBSOCKET_PROTOCOL) != -1
@@ -100,14 +101,14 @@ getLocalConfig().then(async registerInfo => {
                                 request.reject(404, "No supported protocol")
                             } else {
                                 var connection = request.accept(WEBSOCKET_PROTOCOL)
-                                new UserSession(connection, registerInfo)
+                                new UserSession(connection, localConfig)
                             }
                         })
 
                         var url = await connect({
                             addr: port,
                             onStatusChange: (status) => {
-                                console.log(`ngrok status is now ${status}`)
+                                log(`ngrok status is now ${status}`)
                             }
                         })
 
@@ -115,10 +116,10 @@ getLocalConfig().then(async registerInfo => {
 
                         wsUrl.protocol = "wss"
 
-                        console.log(`ngrok connected, url is ${url}, formated as ${format(wsUrl)}`)
-                        await setNgrokUrl(registerInfo, format(wsUrl))
+                        log(`ngrok connected, url is ${url}, formated as ${format(wsUrl)}`)
+                        await setNgrokUrl(localConfig, format(wsUrl))
 
-                        console.log("URL is now set in remote")
+                        log("URL is now set in remote")
                     } catch (err) {
                         console.error(err)
                         debugger
@@ -133,13 +134,13 @@ getLocalConfig().then(async registerInfo => {
             callback() {
                 return new Promise((resolve, reject) => {
                     var start = () => {
-                        var child = spawn(process.argv[0], [process.argv[1], "_run_direct"],  {
+                        var child = spawn(process.argv[0], [process.argv[1], "_run_direct"], {
                             stdio: "inherit"
                         })
 
                         child.on("close", (code) => {
                             if (code == RESTART_EXIT_CODE) {
-                                console.log("\n-- Restart --\n")
+                                log("\n-- Restart --\n")
                                 start()
                             } else {
                                 resolve()
@@ -163,7 +164,48 @@ getLocalConfig().then(async registerInfo => {
             callback() {
                 var packageData = JSON.parse(readFileSync(join(__dirname, "../../../package.json")).toString())
                 var version = packageData.version
-                console.log(version)
+                log(version)
+            }
+        },
+        register: {
+            args: 1,
+            desc: "register <path>   - Registers the path as a task",
+            callback([path]) {
+                var absolutePath = join(process.cwd(), path)
+                if (!localConfig.taskPaths.includes(absolutePath)) localConfig.taskPaths.push(absolutePath)
+                saveLocalConfig(localConfig)
+            }
+        },
+        unregister: {
+            args: 1,
+            desc: "unregister <path> - Registers the path as a task",
+            callback([path]) {
+                var absolutePath = join(process.cwd(), path)
+                if (localConfig.taskPaths.includes(absolutePath)) localConfig.taskPaths.splice(localConfig.taskPaths.indexOf(absolutePath), 1)
+                saveLocalConfig(localConfig)
+            }
+        },
+        registered: {
+            args: 0,
+            desc: "registered        - Prints all registered tasks",
+            callback() {
+                log(localConfig.taskPaths.join("\n"))
+            }
+        },
+        "path": {
+            args: 1,
+            desc: "path <path>       - Sets the clone path",
+            callback([path]) {
+                var absolutePath = join(process.cwd(), path)
+                localConfig.clonePath = absolutePath
+                saveLocalConfig(localConfig)
+            }
+        },
+        "config": {
+            args: 0,
+            desc: "config            - Prints the current config",
+            callback() {
+                log(Object.keys(localConfig).filter(v => v != "accessToken").map(v => v + ": " + inspect(localConfig[v], { colors: true })).join("\n"))
             }
         }
     } as { [index: string]: { args: number, callback: (args: string[]) => any, desc: string } }
@@ -181,7 +223,7 @@ getLocalConfig().then(async registerInfo => {
                 }
             }
         } else {
-            console.log("Commands:\n" + Object.keys(commands).filter(v => v[0] != "_").map(v => "  " + commands[v].desc).join("\n"))
+            log("Commands:\n" + Object.keys(commands).filter(v => v[0] != "_").map(v => "  " + commands[v].desc).join("\n"))
         }
     }
 

@@ -4,9 +4,9 @@ import { readFile, writeFile } from "fs"
 import { registerClient } from "./functions"
 import { IClientLocalConfig } from "../../common/types"
 
-export const CONFIG_PATH = join(homedir(), ".systemcontrol.json")
+export const CONFIG_PATH = join(homedir(), ".scapp.json")
 
-export function saveRegisterData(config: IClientLocalConfig) {
+export function saveLocalConfig(config: IClientLocalConfig) {
     return new Promise<void>((resolve, reject) => {
         writeFile(CONFIG_PATH, JSON.stringify(config), (err) => {
             if (err) reject(err)
@@ -17,15 +17,22 @@ export function saveRegisterData(config: IClientLocalConfig) {
     })
 }
 
-export async function resetRegisterData() {
+export async function resetLocalConfig() {
     let registerInfo = await registerClient(hostname())
 
-    let config = Object.assign({
+    let config = Object.assign(getDefaultConfig(), registerInfo) as IClientLocalConfig
 
-    } as IClientLocalConfig, registerInfo) as IClientLocalConfig
-
-    saveRegisterData(config)
+    saveLocalConfig(config)
     return config
+}
+
+function getDefaultConfig(): IClientLocalConfig {
+    return {
+        taskPaths: [],
+        clonePath: join(homedir(), "scapp"),
+        accessToken: "",
+        id: ""
+    }
 }
 
 export function getLocalConfig() {
@@ -33,7 +40,7 @@ export function getLocalConfig() {
         readFile(CONFIG_PATH, async (err, data) => {
             if (err) {
                 if (err.code == "ENOENT") {
-                    resetRegisterData().then(config => resolve(config)).catch(err => reject(err))
+                    resetLocalConfig().then(config => resolve(config)).catch(err => reject(err))
                 } else {
                     reject(err)
                 }
@@ -44,7 +51,7 @@ export function getLocalConfig() {
                 } catch (err) {
                     return reject(err)
                 }
-                config = Object.assign(config)
+                config = Object.assign(getDefaultConfig(), config)
 
                 resolve(config)
             }
