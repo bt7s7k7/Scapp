@@ -2,7 +2,7 @@
 	<v-container class="my-5" v-if="!('loading' in $data) && client.id in connections">
 		<v-card class="mx-auto">
 			<v-card-title primary-title>
-				<span class="display-3">{{ client.name }}</span>
+				<input class="display-3" v-model="client.name" @change="changeClientName()" style="width: 100%" />
 			</v-card-title>
 			<v-card-actions>
 				<status-indicator :status="connections[client.id].state"></status-indicator>
@@ -399,7 +399,12 @@
 				var labelParts = label.split(/\/|\s/g)
 				var icon = this.actionIcons[labelParts[labelParts.length - 1].toLowerCase()] as string
 				return icon ?? "mdi-help"
-			}
+            },
+            changeClientName() {
+                db.collection("clients").doc(this.clientId).update({
+                    name: this.client.name
+                })
+            }
 		}
 
 	})
