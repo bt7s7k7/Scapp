@@ -1,0 +1,27 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-npm:
+    name: Publish npm package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 12
+          registry-url: https://registry.npmjs.org/
+      - run: npm ci
+        working-directory: "./client"
+        name: Install npm packages
+      - run: npm version ${{ github.event.release.tag_name }} --no-git-tag-version
+        working-directory: "./client"
+        name: Set package version
+      - run: npm publish
+        name: Build and publish
+        working-directory: "./client"
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NODE_AUTH_TOKEN}}
