@@ -24,7 +24,7 @@ jobs:
     - uses: w9jds/firebase-action@master
       name: Deploy to firebase functions
       with:
-        args: deploy
+        args: deploy --only functions
       env:
         FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         PROJECT_PATH : "./firebase"
