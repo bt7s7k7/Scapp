@@ -351,7 +351,8 @@
 			openXterm(action: string) {
 				this.terminal = new Terminal({
 					cols: 145,
-					rows: 30
+                    rows: 30,
+                    convertEol: true
 				})
 
 				this.terminalDialog = true
