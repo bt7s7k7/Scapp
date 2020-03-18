@@ -1,6 +1,6 @@
 <template>
 	<v-container class="my-5">
-		<v-card class="mx-auto" v-for="client in clients" :key="client.id" max-width="400">
+		<v-card class="mt-2 mr-2 client-card" v-for="client in clients" :key="client.id" max-width="400">
 			<v-card-title>{{ client.name }}</v-card-title>
 			<v-card-actions>
 				<status-indicator :status="connections[client.id].state"></status-indicator>
@@ -11,6 +11,12 @@
 		</v-card>
 	</v-container>
 </template>
+
+<style>
+    .client-card {
+        display: inline-block;
+    }
+</style>
 
 <script lang="ts">
 	import { authStore, auth } from "../firebase"
