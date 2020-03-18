@@ -8,7 +8,8 @@ import { AddressInfo } from "net";
 import { server as WebSocketServer } from "websocket";
 import { WEBSOCKET_PROTOCOL } from "../../common/types";
 import { parse, format } from "url";
-import { UserSession, startRuntime } from "./runtime";
+import { UserSession, startRuntime, RESTART_EXIT_CODE } from "./runtime";
+import { execSync, spawn } from "child_process";
 
 getLocalConfig().then(async registerInfo => {
     var commands = {
@@ -70,9 +71,9 @@ getLocalConfig().then(async registerInfo => {
                 return rename(registerInfo, name)
             }
         },
-        "run": {
+        "_run_direct": {
             args: 0,
-            desc: "run               - Starts ngrok and websocket host, brings the client online",
+            desc: "",
             callback: async () => {
                 var server = createServer((request, response) => {
                     response.end("This is a websocket port");
@@ -81,42 +82,76 @@ getLocalConfig().then(async registerInfo => {
                 await startRuntime()
 
                 server.listen(0, async () => {
-                    var port = (server.address() as AddressInfo).port
-                    console.log(`Server listening on port ${port}`)
+                    try {
+                        var port = (server.address() as AddressInfo).port
+                        console.log(`Server listening on port ${port}`)
 
-                    var websocketServer = new WebSocketServer({
-                        httpServer: server
-                    })
+                        var websocketServer = new WebSocketServer({
+                            httpServer: server
+                        })
 
-                    console.log("Websocket started")
+                        console.log("Websocket started")
 
-                    websocketServer.on("request", request => {
-                        var canAccept = request.requestedProtocols.indexOf(WEBSOCKET_PROTOCOL) != -1
-                        if (!canAccept) {
-                            request.reject(404, "No supported protocol")
-                        } else {
-                            var connection = request.accept(WEBSOCKET_PROTOCOL)
-                            new UserSession(connection, registerInfo)
-                        }
-                    })
+                        websocketServer.on("request", request => {
+                            var canAccept = request.requestedProtocols.indexOf(WEBSOCKET_PROTOCOL) != -1
+                            if (!canAccept) {
+                                request.reject(404, "No supported protocol")
+                            } else {
+                                var connection = request.accept(WEBSOCKET_PROTOCOL)
+                                new UserSession(connection, registerInfo)
+                            }
+                        })
 
-                    var url = await connect({
-                        addr: port,
-                        onStatusChange: (status) => {
-                            console.log(`ngrok status is now ${status}`)
-                        }
-                    })
+                        var url = await connect({
+                            addr: port,
+                            onStatusChange: (status) => {
+                                console.log(`ngrok status is now ${status}`)
+                            }
+                        })
 
+                        var wsUrl = parse(url)
 
-                    var wsUrl = parse(url)
+                        wsUrl.protocol = "wss"
 
-                    wsUrl.protocol = "wss"
+                        console.log(`ngrok connected, url is ${url}, formated as ${format(wsUrl)}`)
+                        await setNgrokUrl(registerInfo, format(wsUrl))
 
-                    console.log(`ngrok connected, url is ${url}, formated as ${format(wsUrl)}`)
-                    await setNgrokUrl(registerInfo, format(wsUrl))
+                        console.log("URL is now set in remote")
+                    } catch (err) {
+                        console.error(err)
+                        debugger
+                        process.exit(1)
+                    }
+                })
+            }
+        },
+        "run": {
+            args: 0,
+            desc: "run               - Starts ngrok and websocket host, brings the client online",
+            callback() {
+                return new Promise((resolve, reject) => {
+                    var start = () => {
+                        var child = spawn(process.argv[0], [process.argv[1], "_run_direct"],  {
+                            stdio: "inherit"
+                        })
 
-                    console.log("URL is now set in remote")
+                        child.on("close", (code) => {
+                            if (code == RESTART_EXIT_CODE) {
+                                console.log("\n-- Restart --\n")
+                                start()
+                            } else {
+                                resolve()
+                            }
+                        })
 
+                        child.on("error", (err) => {
+                            console.error(err)
+                            debugger
+                            process.exit(1)
+                        })
+                    }
+
+                    start()
                 })
             }
         }
@@ -135,7 +170,7 @@ getLocalConfig().then(async registerInfo => {
                 }
             }
         } else {
-            console.log("Commands:\n" + Object.keys(commands).map(v => "  " + commands[v].desc).join("\n"))
+            console.log("Commands:\n" + Object.keys(commands).filter(v => v[0] != "_").map(v => "  " + commands[v].desc).join("\n"))
         }
     }
 

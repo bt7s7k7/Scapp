@@ -4,6 +4,8 @@ import { verifyIDToken } from "./functions"
 import { spawn, IPty, IPtyForkOptions } from "node-pty"
 import { homedir, EOL } from "os"
 
+export const RESTART_EXIT_CODE = 50214
+
 export const DEFAULT_SHELL = process.env.COMSPEC || process.env.SHELL
 
 interface IRunningAction {
@@ -41,7 +43,7 @@ export async function startAction(context: string, action: IAction) {
         rows: 30
     })
 
-    process.write(action.command + "& exit" + EOL)
+    process.write(action.command + "&& exit" + EOL)
 
     var runningAction = {
         history: [],
@@ -122,17 +124,47 @@ export class UserSession {
                         }
                         
                         if (request.quickCommand) {
-                            let actionId = request.quickCommand
+                            var label = request.quickCommand
+                            var command = request.quickCommand
+
+                            if (command == "_exit") {
+                                process.exit(0)
+                            } else if (command == "_restart") {
+                                process.exit(RESTART_EXIT_CODE)
+                            } else if (command == "_reboot") {
+                                label = "Reboot"
+                                if (process.platform == "win32") {
+                                    command = "shutdown /r /t 0 /f"
+                                } else {
+                                    command = "sudo reboot"
+                                }
+                            } else if (command == "_shutdown") {
+                                label = "Shutdown"
+                                if (process.platform == "win32") {
+                                    command = "shutdown /p /f"
+                                } else {
+                                    command = "sudo poweroff"
+                                }
+                            } else if (command == "_lock") {
+                                label = "Lock"
+                                if (process.platform == "win32") {
+                                    command = "rundll32.exe user32.dll,LockWorkStation"
+                                } else {
+                                    command = "DISPLAY=:0 gnome-screensaver-command -l"
+                                }
+                            }
+
+                            let actionId = command
                             while ("_quick/" + actionId in runningActions) {
                                 actionId = Math.random().toString().substr(2)
                             }
     
                             startAction("_quick", {
-                                command: request.quickCommand,
+                                command,
                                 name: actionId,
                                 cwd: homedir(),
                                 env: {},
-                                label: request.quickCommand
+                                label
                             })
                         }
 

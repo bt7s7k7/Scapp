@@ -124,7 +124,22 @@
 				</v-card-text>
 				<v-card-actions>
 					<v-btn small @click="startTerminal()">
-						<v-icon right>mdi-console</v-icon>Start terminal
+						<v-icon right>mdi-console</v-icon>new shell
+					</v-btn>
+					<v-btn small @click="quickCommand('_exit')">
+						kill process
+					</v-btn>
+					<v-btn small @click="quickCommand('_restart')">
+						restart process
+					</v-btn>
+					<v-btn small @click="quickCommand('_shutdown')">
+						shutdown
+					</v-btn>
+					<v-btn small @click="quickCommand('_reboot')">
+						reboot
+					</v-btn>
+					<v-btn small @click="quickCommand('_lock')">
+						lock
 					</v-btn>
 				</v-card-actions>
 			</v-card>

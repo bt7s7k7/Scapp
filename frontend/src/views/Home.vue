@@ -14,7 +14,7 @@
 
 <style>
     .client-card {
-        display: inline-block;
+        display: inline-block !important;
     }
 </style>
 
