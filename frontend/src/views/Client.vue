@@ -267,7 +267,8 @@
 			},
 			tasks() {
 				if (!this.connection) return {}
-				var ret = {} as { [index: string]: { actions: { [index: string]: IAction[] }, task: ITask } }
+                var ret = {} as { [index: string]: { actions: { [index: string]: IAction[] }, task: ITask } }
+                // @ts-ignore Because ITask is not apparently assignable to unknown
 				Object.values(this.connection.tasks).forEach((task: ITask) => {
 					let target = (ret[task.id] = { task, actions: {} }).actions as { [index: string]: IAction[] }
 
