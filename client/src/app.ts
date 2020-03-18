@@ -9,7 +9,9 @@ import { server as WebSocketServer } from "websocket";
 import { WEBSOCKET_PROTOCOL } from "../../common/types";
 import { parse, format } from "url";
 import { UserSession, startRuntime, RESTART_EXIT_CODE } from "./runtime";
-import { execSync, spawn } from "child_process";
+import { spawn } from "child_process";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 getLocalConfig().then(async registerInfo => {
     var commands = {
@@ -153,6 +155,15 @@ getLocalConfig().then(async registerInfo => {
 
                     start()
                 })
+            }
+        },
+        version: {
+            args: 0,
+            desc: "version           - Prints the version",
+            callback() {
+                var packageData = JSON.parse(readFileSync(join(__dirname, "../../../package.json")).toString())
+                var version = packageData.version
+                console.log(version)
             }
         }
     } as { [index: string]: { args: number, callback: (args: string[]) => any, desc: string } }
