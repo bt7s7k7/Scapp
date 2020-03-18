@@ -2,6 +2,14 @@ module.exports = {
     "transpileDependencies": [
         "vuetify"
     ],
+    chainWebpack: (config) => {
+        config
+            .plugin('html')
+            .tap((args) => {
+                args[0].title = 'Scapp';
+                return args;
+            });
+    },
     pwa: {
         "themeColor": "#1976d2",
         "display": "fullscreen",

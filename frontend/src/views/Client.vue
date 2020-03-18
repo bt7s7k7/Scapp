@@ -1,5 +1,5 @@
 <template>
-	<v-container class="mx-5" v-if="!('loading' in $data) && client.id in connections">
+	<v-container class="my-5" v-if="!('loading' in $data) && client.id in connections">
 		<v-card class="mx-auto">
 			<v-card-title primary-title>
 				<span class="display-3">{{ client.name }}</span>
