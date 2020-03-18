@@ -1,0 +1,52 @@
+# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
+
+name: Node.js CI
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  deploy-functions:
+    name: Deploy firebase functions
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js 12.x
+      uses: actions/setup-node@v1
+      with:
+        node-version: 12.x
+    - run: npm ci
+      name: Install npm packages
+      working-directory: "./firebase/functions"
+    - uses: w9jds/firebase-action@master
+      name: Deploy to firebase functions
+      with:
+        args: deploy --only functions
+      env:
+        FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        PROJECT_PATH : "./firebase"
+  deploy-hosting:
+    runs-on: ubuntu-latest
+    name: Deploy to firebase hosting
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js 12.x
+      uses: actions/setup-node@v1
+      with:
+        node-version: 12.x
+    - run: npm ci
+      name: Install npm packages
+      working-directory: "./frontend"
+    - run: npm run build
+      name: Build vue app
+      working-directory: "./frontend"
+    - uses: w9jds/firebase-action@master
+      name: Deploy to firebase hosting
+      with:
+        args: deploy
+      env:
+        FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        PROJECT_PATH : "./frontend"
