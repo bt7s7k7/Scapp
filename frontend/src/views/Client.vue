@@ -129,13 +129,39 @@
 				</v-card-actions>
 			</v-card>
 
-			<v-dialog v-model="terminalDialog" width="1160px">
-				<div id="xterm" style="height: 510px; width: 1160px"></div>
+			<v-dialog v-model="terminalDialog" width="unset">
+				<div id="xterm" style="height: 510px"></div>
+				<v-btn id="terminalCloseButton" text dark @click="terminalDialog = false">close</v-btn>
 			</v-dialog>
 		</template>
 	</v-container>
 	<v-progress-circular indeterminate color="primary" class="ma-auto" v-else></v-progress-circular>
 </template>
+
+<style>
+	.v-dialog {
+		position: relative;
+		overflow: visible;
+	}
+
+	#xterm {
+		width: 1160px;
+	}
+
+	@media screen and (max-width: 1160px) {
+		#xterm {
+			width: 100vw;
+		}
+	}
+
+	#terminalCloseButton {
+		position: absolute;
+		right: 0;
+		bottom: -34px;
+		height: 30px;
+		width: 50px;
+	}
+</style>
 
 <script lang="ts">
 	import Vue from 'vue'
