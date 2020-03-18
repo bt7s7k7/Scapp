@@ -3,9 +3,15 @@
     "icon": "./frontend/public/images/icons/favicon-32x32.png",
     "actions": [
         {
-            "name": "test",
-            "label": "Test",
-            "command": "cmd",
+            "name": "Enviroment values test",
+            "command": "set test && cmd /k",
+            "env": {
+                "TESTING_KEY": "If you see this it worked"
+            }
+        },
+        {
+            "name": "Exit code test",
+            "command": "echo The action will now exit with code 1 && exit 1",
             "env": {
                 "TESTING_KEY": "testing value"
             }

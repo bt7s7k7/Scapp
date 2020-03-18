@@ -33,7 +33,8 @@ export interface IFrontendRequest {
 
 export interface IRunningActionInfo {
     id: string,
-    label: string
+    label: string,
+    exitCode: number
 }
 
 export interface IFrontendResponse {

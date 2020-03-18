@@ -5,7 +5,8 @@ import { authStore, auth } from './firebase'
 export interface IFrontendRunningAction {
     history: string[]
     label: string
-    name: string
+    name: string,
+    exitCode: number
 }
 
 export interface IConnection {
@@ -82,7 +83,8 @@ function createWebsocket(client: IClientDocument & { id: string }, connection: I
                     Vue.set(connection.runningActions, v.id, {
                         history: history ?? [],
                         label: v.label,
-                        name: v.id
+                        name: v.id,
+                        exitCode: v.exitCode
                     } as IFrontendRunningAction)
                     return v.id
                 })

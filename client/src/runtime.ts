@@ -17,7 +17,8 @@ interface IRunningAction {
     label: string,
     process: IPty,
     history: string[],
-    subscribed: string[]
+    subscribed: string[],
+    exitCode: number
 }
 
 interface ITaskConfig {
@@ -32,7 +33,8 @@ var thisAction = {
     label: "Scapp log",
     name: "_internal@log",
     process: null,
-    subscribed: []
+    subscribed: [],
+    exitCode: 0
 } as IRunningAction
 
 export function log(line: string) {
@@ -285,24 +287,23 @@ function scanTasks(config: IClientLocalConfig) {
 
 export function startAction(context: string, action: IAction) {
     try {
-        var process = spawn(DEFAULT_SHELL, [], {
+        var process = spawn(DEFAULT_SHELL, DEFAULT_SHELL == "/bin/bash" ? ["-c", `"${action.command}"`] : ["/c", action.command], {
             cwd: action.cwd,
             env: { ...action.env, ...global.process.env },
             cols: 145,
             rows: 30
         })
-    } catch(err) {
+    } catch (err) {
         return err as Error
     }
-
-    process.write(action.command + "&& exit" + EOL)
 
     var runningAction = {
         history: [],
         name: context + "@" + action.name,
         process,
         label: action.label,
-        subscribed: []
+        subscribed: [],
+        exitCode: 0
     } as IRunningAction
 
     var onOut = (data) => {
@@ -316,8 +317,12 @@ export function startAction(context: string, action: IAction) {
 
     process.on("data", onOut)
 
-    process.on("exit", () => {
-        delete runningActions[runningAction.name]
+    process.on("exit", (code) => {
+        if (code == 0) {
+            delete runningActions[runningAction.name]
+        } else {
+            runningActions[runningAction.name].exitCode = code
+        }
         Object.values(activeSessions).forEach(v => v.sendRunningActions())
     })
 
@@ -538,7 +543,7 @@ export class UserSession {
     }
 
     getRunningActionsRespose() {
-        return { runningActions: Object.keys(runningActions).map(v => ({ label: runningActions[v].label, id: v } as IRunningActionInfo)) } as IFrontendResponse
+        return { runningActions: Object.keys(runningActions).map(v => ({ label: runningActions[v].label, id: v, exitCode: runningActions[v].exitCode } as IRunningActionInfo)) } as IFrontendResponse
     }
 
     sendRunningActions() {

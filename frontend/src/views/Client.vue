@@ -98,12 +98,17 @@
 					<v-list>
 						<v-list-item-group>
 							<v-list-item
-								v-for="actionId in Object.keys(connections[client.id].runningActions)"
+								v-for="(action, actionId) in connection.runningActions"
 								:key="actionId"
 								@click="openXterm(actionId)"
 							>
+                                <v-list-item-avatar v-if="action.exitCode != 0">
+                                    <v-icon color="error">
+                                        mdi-alert
+                                    </v-icon>
+                                </v-list-item-avatar>
 								<v-list-item-content class="pa-0">
-									<span>{{ connections[client.id].runningActions[actionId].label }}</span>
+									<span>{{ action.label }}</span>
 									<span class="grey--text">{{actionId}}</span>
 								</v-list-item-content>
 								<v-list-item-action class="my-0" v-if="actionId != '_internal@log'">
@@ -157,14 +162,12 @@
 							<v-list-item v-for="action in actions" :key="action.name">
 								<v-list-item-avatar>
 									<v-icon>{{ getActionIcon(action.label) }}</v-icon>
-									<v-progress-circular
-										indeterminate
-										color="primary"
-										v-if="taskId + '@' + action.name in connection.runningActions"
-                                        class="progress-float"
-									></v-progress-circular>
+									<template v-if="action.globalId in connection.runningActions">
+										<v-progress-circular color="error" value="100" v-if="connection.runningActions[action.globalId].exitCode != 0" class="progress-float"></v-progress-circular>
+										<v-progress-circular color="primary" indeterminate v-else class="progress-float"></v-progress-circular>
+									</template>
 								</v-list-item-avatar>
-								<v-list-item-content @click="runAction(taskId + '@' + action.name)">
+								<v-list-item-content @click="runAction(action.globalId)">
 									{{ action.label }}
 									<span
 										class="grey--text"
@@ -205,11 +208,11 @@
 		width: 50px;
 	}
 
-    .progress-float {
-        position: absolute;
-        top: 4px;
-        left: 4px;
-    }
+	.progress-float {
+		position: absolute;
+		top: 4px;
+		left: 4px;
+	}
 </style>
 
 <script lang="ts">
@@ -250,8 +253,8 @@
 				"firebase": "mdi-firebase",
 				"test": "mdi-test-tube",
 				"log": "mdi-text-box-outline",
-                "logs": "mdi-text-box-outline",
-                "pull": "mdi-folder-download"
+				"logs": "mdi-text-box-outline",
+				"pull": "mdi-folder-download"
 			} as { [index: string]: string }
 		}),
 		mounted(this: Vue & { terminal: Terminal } & { [index: string]: any }) {
@@ -264,21 +267,22 @@
 		},
 		computed: {
 			connection(this: any) {
-				return this.connections[this.clientId]
+				return this.connections[this.clientId] as IConnection
 			},
 			tasks() {
 				if (!this.connection) return {}
-                var ret = {} as { [index: string]: { actions: { [index: string]: IAction[] }, task: ITask } }
-                // @ts-ignore Because ITask is not apparently assignable to unknown
+				var ret = {} as { [index: string]: { actions: { [index: string]: (IAction & { globalId: string })[] }, task: ITask } }
+				// @ts-ignore Because ITask is not apparently assignable to unknown
 				Object.values(this.connection.tasks).forEach((task: ITask) => {
-					let target = (ret[task.id] = { task, actions: {} }).actions as { [index: string]: IAction[] }
+					ret[task.id] = { task, actions: {} }
+					let target = ret[task.id].actions
 
 					task.actions.forEach((v: IAction) => {
 						var split = v.name.lastIndexOf("/")
 						var prefix = v.name.substr(0, split)
 
 						if (!(prefix in target)) target[prefix] = []
-						target[prefix].push(v)
+						target[prefix].push({ ...v, globalId: task.id + "@" + v.name })
 					})
 				})
 
@@ -340,9 +344,9 @@
 			},
 			runAction(name: string) {
 				if (!(name in connections[this.clientId].runningActions))
-                    requestStartAction(connections[this.clientId], name)
-                else 
-                    this.openXterm(name)
+					requestStartAction(connections[this.clientId], name)
+				else
+					this.openXterm(name)
 			},
 			openXterm(action: string) {
 				this.terminal = new Terminal({
