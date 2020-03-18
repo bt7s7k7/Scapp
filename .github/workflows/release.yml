@@ -24,4 +24,4 @@ jobs:
         name: Build and publish
         working-directory: "./client"
         env:
-          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+          NODE_AUTH_TOKEN: ${{secrets.NODE_AUTH_TOKEN}}
