@@ -246,6 +246,17 @@ function scanTasks(config: IClientLocalConfig) {
                                 })
                             }))
                         }
+
+                        if (files.includes(".git")) {
+                            task.actions.push({
+                                command: "git pull",
+                                cwd: scanPath,
+                                env: {},
+                                label: "Git Pull",
+                                name: (prefix ? prefix + "/" : "") + "git pull"
+                            })
+                        }
+
                         resolve()
                     }
                 })

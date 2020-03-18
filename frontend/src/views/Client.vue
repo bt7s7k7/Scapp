@@ -250,7 +250,8 @@
 				"firebase": "mdi-firebase",
 				"test": "mdi-test-tube",
 				"log": "mdi-text-box-outline",
-				"logs": "mdi-text-box-outline"
+                "logs": "mdi-text-box-outline",
+                "pull": "mdi-folder-download"
 			} as { [index: string]: string }
 		}),
 		mounted(this: Vue & { terminal: Terminal } & { [index: string]: any }) {
