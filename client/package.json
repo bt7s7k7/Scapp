@@ -5,10 +5,11 @@
   "main": "build/client/src/app.js",
   "scripts": {
     "build": "tsc",
-    "prepare": "npm run build"
+    "prepare": "npm run build && cp ../README.md ./README.md"
   },
   "files": [
-    "build/**/*"
+    "build/**/*",
+    "README.md"
   ],
   "repository": {
     "type": "git",
