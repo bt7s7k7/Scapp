@@ -1,12 +1,11 @@
 <template>
 	<v-container class="my-5">
-		<v-card class="mt-2 mr-2 client-card" v-for="client in clients" :key="client.id" max-width="400">
+		<v-card class="mt-2 mr-2 client-card" v-for="client in clients" :key="client.id" width="230" :to="client.id">
 			<v-card-title>{{ client.name }}</v-card-title>
 			<v-card-actions>
 				<status-indicator :status="connections[client.id].state"></status-indicator>
 				<span class="grey--text">{{ client.url }}</span>
 				<v-spacer></v-spacer>
-				<v-btn text :to="client.id">view</v-btn>
 			</v-card-actions>
 		</v-card>
 	</v-container>
