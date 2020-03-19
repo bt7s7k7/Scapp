@@ -1,20 +1,35 @@
 <template>
 	<v-container class="my-5">
-		<v-card class="mt-2 mr-2 client-card" v-for="client in clients" :key="client.id" width="230" :to="client.id" hover>
+		<v-card
+			class="mt-2 mr-2 client-card"
+			v-for="{client, actionsNum, errorsNum, connection, url} in clientCards"
+			:key="client.id"
+			width="230"
+			:to="client.id"
+			hover
+		>
 			<v-card-title>{{ client.name }}</v-card-title>
 			<v-card-actions>
-				<status-indicator :status="connections[client.id].state"></status-indicator>
-				<span class="grey--text">{{ client.url }}</span>
+				<status-indicator :status="connection.state"></status-indicator>
+				<span class="grey--text">{{ url }}</span>
 				<v-spacer></v-spacer>
+				<template v-if="actionsNum > 0">
+					<v-progress-circular indeterminate size="16" color="primary"></v-progress-circular>
+					{{ actionsNum }}
+				</template>
+				<template v-if="errorsNum > 0">
+					<v-icon small color="error" class="ml-2">mdi-alert</v-icon>
+					{{ errorsNum }}
+				</template>
 			</v-card-actions>
 		</v-card>
 	</v-container>
 </template>
 
 <style>
-    .client-card {
-        display: inline-block !important;
-    }
+	.client-card {
+		display: inline-block !important;
+	}
 </style>
 
 <script lang="ts">
@@ -23,7 +38,7 @@
 	import Vue from "vue"
 	import { db } from "../firebase"
 	import { IClientDocument } from "../../../common/types"
-	import { updateConnections, connections } from "../connections"
+	import { updateConnections, connections, IConnection } from "../connections"
 	import StatusIndicator from "../components/StatusIndicator.vue"
 
 	export default Vue.extend({
@@ -43,6 +58,23 @@
 		watch: {
 			clients() {
 				updateConnections(this.clients)
+			}
+		},
+		computed: {
+			clientCards() {
+				return (this.clients as (IClientDocument & { id: string })[]).map(v => {
+					var connection = this.connections[v.id] as IConnection
+					var actions = Object.values(connection.runningActions)
+					var errorsNum = actions.filter(v => v.exitCode != 0).length
+					var actionsNum = actions.length - errorsNum - 1
+					return {
+						client: v,
+						actionsNum,
+						errorsNum,
+                        connection,
+                        url: v.url.split(".")[0]
+					}
+				})
 			}
 		}
 	})
