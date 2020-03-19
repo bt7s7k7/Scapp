@@ -145,7 +145,7 @@
 			</v-dialog>
 
 			<v-card v-for="({task, actions}, taskId) in tasks" :key="taskId" class="mt-2">
-				<v-card-title v-ripple @click="toggleCollapsedState(taskId)">
+				<v-card-title v-ripple @click="toggleCollapsedState(taskId)" style="cursor: pointer">
 					{{ task.label }}
 					<span class="grey--text ml-1" v-if="task.label != taskId">{{ taskId }}</span>
 					<v-btn small text fab @click="refreshTasks()">
