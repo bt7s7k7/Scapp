@@ -155,29 +155,36 @@
 						<v-icon>mdi-console</v-icon>
 					</v-btn>
 				</v-card-title>
-				<v-card-text v-if="getCollapsedState(taskId)">
-					<v-list>
-						<v-list-item-group v-for="(actions, prefix) in actions" :key="prefix">
-							<v-subheader v-if="prefix != ''" class="headline black--text">{{ prefix }}</v-subheader>
-							<v-list-item v-for="action in actions" :key="action.name">
-								<v-list-item-avatar>
-									<v-icon>{{ getActionIcon(action.label) }}</v-icon>
-									<template v-if="action.globalId in connection.runningActions">
-										<v-progress-circular color="error" value="100" v-if="connection.runningActions[action.globalId].exitCode != 0" class="progress-float"></v-progress-circular>
-										<v-progress-circular color="primary" indeterminate v-else class="progress-float"></v-progress-circular>
-									</template>
-								</v-list-item-avatar>
-								<v-list-item-content @click="runAction(action.globalId)">
-									{{ action.label }}
-									<span
-										class="grey--text"
-										v-if="action.label != action.name"
-									>{{ action.name }}</span>
-								</v-list-item-content>
-							</v-list-item>
-						</v-list-item-group>
-					</v-list>
-				</v-card-text>
+				<v-expand-transition>
+					<v-card-text v-show="getCollapsedState(taskId)">
+						<v-list>
+							<v-list-item-group v-for="(actions, prefix) in actions" :key="prefix">
+								<v-subheader v-if="prefix != ''" class="headline black--text">{{ prefix }}</v-subheader>
+								<v-list-item v-for="action in actions" :key="action.name">
+									<v-list-item-avatar>
+										<v-icon>{{ getActionIcon(action.label) }}</v-icon>
+										<template v-if="action.globalId in connection.runningActions">
+											<v-progress-circular
+												color="error"
+												value="100"
+												v-if="connection.runningActions[action.globalId].exitCode != 0"
+												class="progress-float"
+											></v-progress-circular>
+											<v-progress-circular color="primary" indeterminate v-else class="progress-float"></v-progress-circular>
+										</template>
+									</v-list-item-avatar>
+									<v-list-item-content @click="runAction(action.globalId)">
+										{{ action.label }}
+										<span
+											class="grey--text"
+											v-if="action.label != action.name"
+										>{{ action.name }}</span>
+									</v-list-item-content>
+								</v-list-item>
+							</v-list-item-group>
+						</v-list>
+					</v-card-text>
+				</v-expand-transition>
 			</v-card>
 		</template>
 	</v-container>
