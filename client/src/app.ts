@@ -46,7 +46,8 @@ import { hostname } from "os";
             args: 1,
             callback: async ([name]) => {
                 var localConfig = await getLocalConfig()
-                return changeAllowedUsers(localConfig, [name], [])
+                await changeAllowedUsers(localConfig, [name], [])
+                log(`User allowed`)
             },
             desc: "allow <userid>    - Allows the userid access to this client"
         },
@@ -54,7 +55,8 @@ import { hostname } from "os";
             args: 1,
             callback: async ([name]) => {
                 var localConfig = await getLocalConfig()
-                return changeAllowedUsers(localConfig, [], [name])
+                await changeAllowedUsers(localConfig, [], [name])
+                log(`User disallowed`)
             },
             desc: "disallow <userid> - Removes the userid from allowed users"
         },
@@ -83,7 +85,8 @@ import { hostname } from "os";
             desc: "rename <name>     - Changes the name of this client",
             callback: async ([name]) => {
                 var localConfig = await getLocalConfig()
-                return rename(localConfig, name)
+                await rename(localConfig, name)
+                log(`Client renamed`)
             }
         },
         "_run_direct": {
@@ -187,7 +190,8 @@ import { hostname } from "os";
                 var localConfig = await getLocalConfig()
                 var absolutePath = join(process.cwd(), path)
                 if (!localConfig.taskPaths.includes(absolutePath)) localConfig.taskPaths.push(absolutePath)
-                saveLocalConfig(localConfig)
+                await saveLocalConfig(localConfig)
+                log(`Path registered`)
             }
         },
         unregister: {
@@ -197,7 +201,8 @@ import { hostname } from "os";
                 var localConfig = await getLocalConfig()
                 var absolutePath = join(process.cwd(), path)
                 if (localConfig.taskPaths.includes(absolutePath)) localConfig.taskPaths.splice(localConfig.taskPaths.indexOf(absolutePath), 1)
-                saveLocalConfig(localConfig)
+                await saveLocalConfig(localConfig)
+                log(`Path unregistered`)
             }
         },
         registered: {
@@ -215,7 +220,8 @@ import { hostname } from "os";
                 var localConfig = await getLocalConfig()
                 var absolutePath = join(process.cwd(), path)
                 localConfig.clonePath = absolutePath
-                saveLocalConfig(localConfig)
+                await saveLocalConfig(localConfig)
+                log(`Clone path set`)
             }
         },
         "config": {
@@ -231,7 +237,7 @@ import { hostname } from "os";
             desc: "init <ownerId>    - Registers this client with the database allowing it to be controlled by the owner",
             async callback([id]) {
                 var info = await registerClient(hostname(), id)
-                saveLocalConfig(Object.assign(await getLocalConfig(), info))
+                await saveLocalConfig(Object.assign(await getLocalConfig(), info))
                 log(`Registered successfully as "${hostname()}"`)
             }
         },
