@@ -27,7 +27,7 @@
 												<span :class="user == authStore.currentUser.uid ? 'green--text' : ''">{{ user }}</span>
 											</v-list-item-title>
 										</v-list-item-content>
-										<v-list-item-action>
+										<v-list-item-action v-if="client.allowedUsers.length > 1 && user != authStore.currentUser.uid">
 											<v-btn fab text small @click="removeUser(user)">
 												<v-icon>mdi-account-remove</v-icon>
 											</v-btn>

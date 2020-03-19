@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { getLocalConfig, resetLocalConfig, saveLocalConfig } from "./config";
-import { getConfig, rename, changeAllowedUsers, setNgrokUrl, registerClient } from "./functions";
+import { getConfig, rename, changeAllowedUsers, setNgrokUrl, registerClient, deleteClient } from "./functions";
 import { createInterface } from "readline";
 import { connect } from "ngrok";
 import { createServer } from "http";
@@ -60,10 +60,14 @@ import { hostname } from "os";
         },
         "reset": {
             args: 0,
-            callback: () => {
-                return resetLocalConfig()
+            callback: async () => {
+                var config = await getLocalConfig()
+                await deleteClient(config)
+                log(`Deleted the client from the database`)
+                await resetLocalConfig()
+                log(`Reset local config`)
             },
-            desc: "reset             - Creates a new client, with a new id, access token and no allowed users"
+            desc: "reset             - Deletes all settings and removes the client from the database"
         },
         "name": {
             args: 0,
@@ -223,12 +227,21 @@ import { hostname } from "os";
             }
         },
         init: {
-            args: 0,
-            desc: "init              - Registers this client with the database allowing it to be controlled",
-            async callback() {
-                var info = await registerClient(hostname())
+            args: 1,
+            desc: "init <ownerId>    - Registers this client with the database allowing it to be controlled by the owner",
+            async callback([id]) {
+                var info = await registerClient(hostname(), id)
                 saveLocalConfig(Object.assign(await getLocalConfig(), info))
                 log(`Registered successfully as "${hostname()}"`)
+            }
+        },
+        "delete": {
+            args: 0,
+            desc: "delete            - Deltes this client from the database",
+            async callback() {
+                var config = await getLocalConfig()
+                await deleteClient(config)
+                log(`Successfully deleted the client, run scapp init to register it again`)
             }
         }
     } as { [index: string]: { args: number, callback: (args: string[]) => any, desc: string } }

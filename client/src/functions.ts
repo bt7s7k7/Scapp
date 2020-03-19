@@ -56,8 +56,8 @@ export function executeFunctionRaw(name: string, data: any) {
     })
 }
 
-export function registerClient(name: string): Promise<IClientRegisterInfo> {
-    return executeFunctionRaw("registerClient", { name })
+export function registerClient(name: string, owner: string): Promise<IClientRegisterInfo> {
+    return executeFunctionRaw("registerClient", { name, owner })
 }
 
 const CLIENT_NOT_REG_ERROR = new Error("This client has not been registered yet, run scapp init to register")
@@ -65,6 +65,11 @@ const CLIENT_NOT_REG_ERROR = new Error("This client has not been registered yet,
 export function getConfig(info: IClientRegisterInfo): Promise<IClientDocument> {
     if (!info.id || !info.accessToken) return Promise.reject(CLIENT_NOT_REG_ERROR)
     return executeFunctionRaw("getClientConfig", info)
+}
+
+export function deleteClient(info: IClientRegisterInfo): Promise<IClientDocument> {
+    if (!info.id || !info.accessToken) return Promise.reject(CLIENT_NOT_REG_ERROR)
+    return executeFunctionRaw("deleteClient", info)
 }
 
 export function rename(info: IClientRegisterInfo, name: string): Promise<void> {
