@@ -60,11 +60,15 @@ export function registerClient(name: string): Promise<IClientRegisterInfo> {
     return executeFunctionRaw("registerClient", { name })
 }
 
+const CLIENT_NOT_REG_ERROR = new Error("This client has not been registered yet, run scapp init to register")
+
 export function getConfig(info: IClientRegisterInfo): Promise<IClientDocument> {
+    if (!info.id || !info.accessToken) return Promise.reject(CLIENT_NOT_REG_ERROR)
     return executeFunctionRaw("getClientConfig", info)
 }
 
 export function rename(info: IClientRegisterInfo, name: string): Promise<void> {
+    if (!info.id || !info.accessToken) return Promise.reject(CLIENT_NOT_REG_ERROR)
     return executeFunctionRaw("renameClient", {
         ...info,
         name
@@ -72,6 +76,7 @@ export function rename(info: IClientRegisterInfo, name: string): Promise<void> {
 }
 
 export function changeAllowedUsers(info: IClientRegisterInfo, add: string[], remove: string[]) {
+    if (!info.id || !info.accessToken) return Promise.reject(CLIENT_NOT_REG_ERROR)
     return executeFunctionRaw("changeClientAllowedUsers", {
         ...info,
         add,
@@ -80,6 +85,7 @@ export function changeAllowedUsers(info: IClientRegisterInfo, add: string[], rem
 }
 
 export function setNgrokUrl(info: IClientRegisterInfo, url: string) {
+    if (!info.id || !info.accessToken) return Promise.reject(CLIENT_NOT_REG_ERROR)
     return executeFunctionRaw("setClientUrl", {
         ...info,
         url
@@ -87,6 +93,7 @@ export function setNgrokUrl(info: IClientRegisterInfo, url: string) {
 }
 
 export function verifyIDToken(info: IClientRegisterInfo, token: string): Promise<{ valid: boolean, reason: string }> {
+    if (!info.id || !info.accessToken) return Promise.reject(CLIENT_NOT_REG_ERROR)
     return executeFunctionRaw("verifyUserToken", {
         ...info,
         token

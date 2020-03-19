@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { getLocalConfig, resetLocalConfig, saveLocalConfig } from "./config";
-import { getConfig, rename, changeAllowedUsers, setNgrokUrl } from "./functions";
+import { getConfig, rename, changeAllowedUsers, setNgrokUrl, registerClient } from "./functions";
 import { createInterface } from "readline";
 import { connect } from "ngrok";
 import { createServer } from "http";
@@ -13,12 +13,14 @@ import { spawn } from "child_process";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { inspect } from "util";
+import { hostname } from "os";
 
-getLocalConfig().then(async localConfig => {
+(async () => {
     var commands = {
         "allowed": {
             args: 0,
             callback: async () => {
+                var localConfig = await getLocalConfig()
                 var config = await getConfig(localConfig)
                 log(config.allowedUsers.join("\n"))
             },
@@ -26,28 +28,32 @@ getLocalConfig().then(async localConfig => {
         },
         "id": {
             args: 0,
-            callback: () => {
+            callback: async () => {
+                var localConfig = await getLocalConfig()
                 log(localConfig.id)
             },
             desc: "id                - Returns the id of this client"
         },
         "token": {
             args: 0,
-            callback: () => {
+            callback: async () => {
+                var localConfig = await getLocalConfig()
                 log(localConfig.accessToken)
             },
             desc: "token             - Returns the access token of this client"
         },
         "allow": {
             args: 1,
-            callback: ([name]) => {
+            callback: async ([name]) => {
+                var localConfig = await getLocalConfig()
                 return changeAllowedUsers(localConfig, [name], [])
             },
             desc: "allow <userid>    - Allows the userid access to this client"
         },
         "disallow": {
             args: 1,
-            callback: ([name]) => {
+            callback: async ([name]) => {
+                var localConfig = await getLocalConfig()
                 return changeAllowedUsers(localConfig, [], [name])
             },
             desc: "disallow <userid> - Removes the userid from allowed users"
@@ -62,6 +68,7 @@ getLocalConfig().then(async localConfig => {
         "name": {
             args: 0,
             callback: async () => {
+                var localConfig = await getLocalConfig()
                 var config = await getConfig(localConfig)
                 log(config.name)
             },
@@ -70,7 +77,8 @@ getLocalConfig().then(async localConfig => {
         "rename": {
             args: 1,
             desc: "rename <name>     - Changes the name of this client",
-            callback: ([name]) => {
+            callback: async ([name]) => {
+                var localConfig = await getLocalConfig()
                 return rename(localConfig, name)
             }
         },
@@ -78,6 +86,7 @@ getLocalConfig().then(async localConfig => {
             args: 0,
             desc: "",
             callback: async () => {
+                var localConfig = await getLocalConfig()
                 var server = createServer((request, response) => {
                     response.end("This is a websocket port");
                 })
@@ -170,7 +179,8 @@ getLocalConfig().then(async localConfig => {
         register: {
             args: 1,
             desc: "register <path>   - Registers the path as a task",
-            callback([path]) {
+            async callback([path]) {
+                var localConfig = await getLocalConfig()
                 var absolutePath = join(process.cwd(), path)
                 if (!localConfig.taskPaths.includes(absolutePath)) localConfig.taskPaths.push(absolutePath)
                 saveLocalConfig(localConfig)
@@ -179,7 +189,8 @@ getLocalConfig().then(async localConfig => {
         unregister: {
             args: 1,
             desc: "unregister <path> - Registers the path as a task",
-            callback([path]) {
+            async callback([path]) {
+                var localConfig = await getLocalConfig()
                 var absolutePath = join(process.cwd(), path)
                 if (localConfig.taskPaths.includes(absolutePath)) localConfig.taskPaths.splice(localConfig.taskPaths.indexOf(absolutePath), 1)
                 saveLocalConfig(localConfig)
@@ -188,14 +199,16 @@ getLocalConfig().then(async localConfig => {
         registered: {
             args: 0,
             desc: "registered        - Prints all registered tasks",
-            callback() {
+            async callback() {
+                var localConfig = await getLocalConfig()
                 log(localConfig.taskPaths.join("\n"))
             }
         },
         "path": {
             args: 1,
             desc: "path <path>       - Sets the clone path",
-            callback([path]) {
+            async callback([path]) {
+                var localConfig = await getLocalConfig()
                 var absolutePath = join(process.cwd(), path)
                 localConfig.clonePath = absolutePath
                 saveLocalConfig(localConfig)
@@ -204,8 +217,18 @@ getLocalConfig().then(async localConfig => {
         "config": {
             args: 0,
             desc: "config            - Prints the current config",
-            callback() {
+            async callback() {
+                var localConfig = await getLocalConfig()
                 log(Object.keys(localConfig).filter(v => v != "accessToken").map(v => v + ": " + inspect(localConfig[v], { colors: true })).join("\n"))
+            }
+        },
+        init: {
+            args: 0,
+            desc: "init              - Registers this client with the database allowing it to be controlled",
+            async callback() {
+                var info = await registerClient(hostname())
+                saveLocalConfig(Object.assign(await getLocalConfig(), info))
+                log(`Registered successfully as "${hostname()}"`)
             }
         }
     } as { [index: string]: { args: number, callback: (args: string[]) => any, desc: string } }
@@ -238,17 +261,18 @@ getLocalConfig().then(async localConfig => {
         repl.on("line", (line) => {
             if (line == "") return
             var tokens = line.split(" ")
-            runCommand(tokens[0], tokens.slice(1))
+            runCommand(tokens[0], tokens.slice(1)).catch(errorCatcher)
         })
     }
-}).catch(errorCatcher)
+})().catch(errorCatcher)
 
 var errorCatcher = err => {
     if (err instanceof Error) {
         if (err.message == "Document not found") {
             console.error(`The database document for this client was not found. It was probably deleted from the website. Run "scapp reset" to fix this problem.`)
         } else {
-            console.error(err.stack)
+            debugger
+            console.error(err.message)
         }
     } else {
         console.error(err)

@@ -7,6 +7,7 @@ import { IClientLocalConfig } from "../../common/types"
 export const CONFIG_PATH = join(homedir(), ".scapp.json")
 
 export function saveLocalConfig(config: IClientLocalConfig) {
+    cachedLocalConfig = config
     return new Promise<void>((resolve, reject) => {
         writeFile(CONFIG_PATH, JSON.stringify(config), (err) => {
             if (err) reject(err)
@@ -18,9 +19,7 @@ export function saveLocalConfig(config: IClientLocalConfig) {
 }
 
 export async function resetLocalConfig() {
-    let registerInfo = await registerClient(hostname())
-
-    let config = Object.assign(getDefaultConfig(), registerInfo) as IClientLocalConfig
+    let config = getDefaultConfig()
 
     saveLocalConfig(config)
     return config
@@ -35,7 +34,10 @@ function getDefaultConfig(): IClientLocalConfig {
     }
 }
 
+var cachedLocalConfig = null as IClientLocalConfig
+
 export function getLocalConfig() {
+    if (cachedLocalConfig) return Promise.resolve(cachedLocalConfig)
     return new Promise<IClientLocalConfig>((resolve, reject) => {
         readFile(CONFIG_PATH, async (err, data) => {
             if (err) {
@@ -56,5 +58,5 @@ export function getLocalConfig() {
                 resolve(config)
             }
         })
-    })
+    }).then(v => { cachedLocalConfig = v; return v })
 }
