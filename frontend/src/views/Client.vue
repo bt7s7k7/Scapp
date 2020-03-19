@@ -145,7 +145,7 @@
 			</v-dialog>
 
 			<v-card v-for="({task, actions}, taskId) in tasks" :key="taskId" class="mt-2">
-				<v-card-title>
+				<v-card-title v-ripple @click="toggleCollapsedState(taskId)">
 					{{ task.label }}
 					<span class="grey--text ml-1" v-if="task.label != taskId">{{ taskId }}</span>
 					<v-btn small text fab @click="refreshTasks()">
@@ -155,7 +155,7 @@
 						<v-icon>mdi-console</v-icon>
 					</v-btn>
 				</v-card-title>
-				<v-card-text>
+				<v-card-text v-if="getCollapsedState(taskId)">
 					<v-list>
 						<v-list-item-group v-for="(actions, prefix) in actions" :key="prefix">
 							<v-subheader v-if="prefix != ''" class="headline black--text">{{ prefix }}</v-subheader>
@@ -255,7 +255,8 @@
 				"log": "mdi-text-box-outline",
 				"logs": "mdi-text-box-outline",
 				"pull": "mdi-folder-download"
-			} as { [index: string]: string }
+            } as { [index: string]: string },
+            collapsedState: {} as { [index: string]: boolean }
 		}),
 		mounted(this: Vue & { terminal: Terminal } & { [index: string]: any }) {
 			this.$bind("client", db.collection("clients").doc(this.clientId))
@@ -404,6 +405,18 @@
                 db.collection("clients").doc(this.clientId).update({
                     name: this.client.name
                 })
+            },
+            toggleCollapsedState(id: string) {
+                var set = true
+                if (id in this.collapsedState) {
+                    set = this.collapsedState[id] = !this.collapsedState[id]
+                } else {
+                    Vue.set(this.collapsedState, id, !this.getCollapsedState(id))
+                }
+                localStorage.setItem("taskCollapse_" + this.clientId + "_" + id, set.toString())
+            },
+            getCollapsedState(id: string) {
+                return this.collapsedState[id] ?? localStorage.getItem("taskCollapse_" + this.clientId + "_" + id) == "true"
             }
 		}
 
