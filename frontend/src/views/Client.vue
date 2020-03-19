@@ -105,6 +105,9 @@
 								<v-list-item-avatar v-if="action.exitCode != 0">
 									<v-icon color="error">mdi-alert</v-icon>
 								</v-list-item-avatar>
+								<v-list-item-avatar v-else-if="actionId != '_internal@log'">
+									<v-progress-circular color="primary" indeterminate class="progress-float"></v-progress-circular>
+								</v-list-item-avatar>
 								<v-list-item-content class="pa-0">
 									<span>{{ action.label }}</span>
 									<span class="grey--text">{{actionId}}</span>
