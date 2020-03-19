@@ -89,7 +89,7 @@ function createWebsocket(client: IClientDocument & { id: string }, connection: I
                     return v.id
                 })
 
-                Object.keys(connection.runningActions).filter(v=>sent.indexOf(v) == -1).forEach(v=>Vue.delete(connection.runningActions, v))
+                Object.keys(connection.runningActions).filter(v => sent.indexOf(v) == -1).forEach(v => Vue.delete(connection.runningActions, v))
             }
 
             if (response.err) {

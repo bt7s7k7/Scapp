@@ -23,7 +23,7 @@
 	import * as firebase from "firebase/app"
 	import "firebase/auth"
 	import router from '../router'
-    var authUI = new firebaseui.auth.AuthUI(auth)
+	var authUI = new firebaseui.auth.AuthUI(auth)
 
 	export default Vue.extend({
 		name: "Login",
@@ -32,23 +32,23 @@
 			authStore
 		}),
 		mounted() {
-            var authContainer = document.getElementById("authContainer")
-            if (authContainer == null) throw new Error("Cannot find auth container")
+			var authContainer = document.getElementById("authContainer")
+			if (authContainer == null) throw new Error("Cannot find auth container")
 			authUI.start(authContainer, {
 				signInOptions: [firebase.auth.GoogleAuthProvider.PROVIDER_ID],
 				callbacks: {
 					uiShown: () => {
-                        this.loading = false
-                        // @ts-ignore
-                        if (authContainer.clientHeight > 70) {
-                            authStore.loading = true
-                        }
+						this.loading = false
+						// @ts-ignore
+						if (authContainer.clientHeight > 70) {
+							authStore.loading = true
+						}
 					},
 					signInSuccessWithAuthResult() {
 						router.push("/")
 						return false
 					}
-                }
+				}
 			})
 		}
 	})

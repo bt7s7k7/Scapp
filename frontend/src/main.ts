@@ -9,8 +9,8 @@ Vue.config.productionTip = false
 Vue.use(firestorePlugin)
 
 new Vue({
-  router,
-// @ts-ignore
-  vuetify,
-  render: h => h(App)
+    router,
+    // @ts-ignore
+    vuetify,
+    render: h => h(App)
 }).$mount('#app')

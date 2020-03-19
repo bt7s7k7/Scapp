@@ -20,7 +20,7 @@ export const authStore = {
     loading: true
 }
 
-auth.onAuthStateChanged(user=>{
+auth.onAuthStateChanged(user => {
     authStore.currentUser = user
     authStore.loading = false
 

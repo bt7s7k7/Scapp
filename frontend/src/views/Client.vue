@@ -102,11 +102,9 @@
 								:key="actionId"
 								@click="openXterm(actionId)"
 							>
-                                <v-list-item-avatar v-if="action.exitCode != 0">
-                                    <v-icon color="error">
-                                        mdi-alert
-                                    </v-icon>
-                                </v-list-item-avatar>
+								<v-list-item-avatar v-if="action.exitCode != 0">
+									<v-icon color="error">mdi-alert</v-icon>
+								</v-list-item-avatar>
 								<v-list-item-content class="pa-0">
 									<span>{{ action.label }}</span>
 									<span class="grey--text">{{actionId}}</span>
@@ -262,8 +260,8 @@
 				"log": "mdi-text-box-outline",
 				"logs": "mdi-text-box-outline",
 				"pull": "mdi-folder-download"
-            } as { [index: string]: string },
-            collapsedState: {} as { [index: string]: boolean }
+			} as { [index: string]: string },
+			collapsedState: {} as { [index: string]: boolean }
 		}),
 		mounted(this: Vue & { terminal: Terminal } & { [index: string]: any }) {
 			this.$bind("client", db.collection("clients").doc(this.clientId))
@@ -359,8 +357,8 @@
 			openXterm(action: string) {
 				this.terminal = new Terminal({
 					cols: 145,
-                    rows: 30,
-                    convertEol: true
+					rows: 30,
+					convertEol: true
 				})
 
 				this.terminalDialog = true
@@ -407,24 +405,24 @@
 				var labelParts = label.split(/\/|\s/g)
 				var icon = this.actionIcons[labelParts[labelParts.length - 1].toLowerCase()] as string
 				return icon ?? "mdi-help"
-            },
-            changeClientName() {
-                db.collection("clients").doc(this.clientId).update({
-                    name: this.client.name
-                })
-            },
-            toggleCollapsedState(id: string) {
-                var set = true
-                if (id in this.collapsedState) {
-                    set = this.collapsedState[id] = !this.collapsedState[id]
-                } else {
-                    Vue.set(this.collapsedState, id, !this.getCollapsedState(id))
-                }
-                localStorage.setItem("taskCollapse_" + this.clientId + "_" + id, set.toString())
-            },
-            getCollapsedState(id: string) {
-                return this.collapsedState[id] ?? localStorage.getItem("taskCollapse_" + this.clientId + "_" + id) == "true"
-            }
+			},
+			changeClientName() {
+				db.collection("clients").doc(this.clientId).update({
+					name: this.client.name
+				})
+			},
+			toggleCollapsedState(id: string) {
+				var set = true
+				if (id in this.collapsedState) {
+					set = this.collapsedState[id] = !this.collapsedState[id]
+				} else {
+					Vue.set(this.collapsedState, id, !this.getCollapsedState(id))
+				}
+				localStorage.setItem("taskCollapse_" + this.clientId + "_" + id, set.toString())
+			},
+			getCollapsedState(id: string) {
+				return this.collapsedState[id] ?? localStorage.getItem("taskCollapse_" + this.clientId + "_" + id) == "true"
+			}
 		}
 
 	})
