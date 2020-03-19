@@ -10,17 +10,23 @@
 		>
 			<v-card-title>{{ client.name }}</v-card-title>
 			<v-card-actions>
-				<status-indicator :status="connection.state"></status-indicator>
-				<span class="grey--text">{{ url }}</span>
-				<v-spacer></v-spacer>
-				<template v-if="actionsNum > 0">
-					<v-progress-circular indeterminate size="16" color="primary"></v-progress-circular>
-					{{ actionsNum }}
+				<template v-if="url.length > 0">
+					<status-indicator :status="connection.state"></status-indicator>
+					<span class="grey--text">{{ url }}</span>
+					<v-spacer></v-spacer>
+					<template v-if="actionsNum > 0">
+						<v-progress-circular indeterminate size="16" color="primary"></v-progress-circular>
+						{{ actionsNum }}
+					</template>
+					<template v-if="errorsNum > 0">
+						<v-icon small color="error" class="ml-2">mdi-alert</v-icon>
+						{{ errorsNum }}
+					</template>
 				</template>
-				<template v-if="errorsNum > 0">
-					<v-icon small color="error" class="ml-2">mdi-alert</v-icon>
-					{{ errorsNum }}
-				</template>
+                <template v-else>
+                    <v-icon small class="mr-1" color="orange">mdi-alert-decagram</v-icon>
+                    <span class="grey--text">Brand new</span>
+                </template>
 			</v-card-actions>
 		</v-card>
 	</v-container>
@@ -66,13 +72,14 @@
 					var connection = this.connections[v.id] as IConnection
 					var actions = Object.values(connection.runningActions)
 					var errorsNum = actions.filter(v => v.exitCode != 0).length
-					var actionsNum = actions.length - errorsNum - 1
+                    var actionsNum = actions.length - errorsNum - 1
+                    if (connection.state != "online") errorsNum = actionsNum = 0
 					return {
 						client: v,
 						actionsNum,
 						errorsNum,
-                        connection,
-                        url: v.url.split(".")[0]
+						connection,
+						url: v.url.split(".")[0]
 					}
 				})
 			}
