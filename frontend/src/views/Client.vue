@@ -283,6 +283,10 @@
 			<v-card v-for="({task, actions}, taskId) in tasks" :key="taskId" class="mt-2">
 				<!-- Clicking on the title toggles the collapsed state -> if the content shows -->
 				<v-card-title v-ripple @click="toggleCollapsedState(taskId)" style="cursor: pointer">
+                    <template v-if="task.icon.length > 0">
+                        <v-icon v-if="task.icon.substr(0, 4) == 'mdi-'" class="mr-2" large>{{ task.icon }}</v-icon>
+                        <v-img v-else contain max-height="40" max-width="40" :src="task.icon"></v-img>
+                    </template>
 					{{ task.label }}
 					<span class="grey--text ml-1" v-if="task.label != taskId">{{ taskId }}</span>
 					<v-btn small text fab @click="refreshTasks()">

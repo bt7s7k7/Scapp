@@ -131,7 +131,8 @@ export function scanTasks(config: IClientLocalConfig) {
             actions: [],
             id,
             label: basename(path),
-            path
+            path,
+            icon: ""
         } as ITask
 
         var scanDir = (scanPath: string, prefix: string) => {

@@ -213,7 +213,7 @@ var runner = (directArgument: RunType, ip: string = "") => () => {
             callback() {
                 Object.values(networkInterfaces()).forEach(v=>v.filter(v=>v.family == "IPv4").forEach(v=>log(v.address)))
             }
-        }
+        },
         version: {
             args: 0,
             desc: "version             - Prints the version",

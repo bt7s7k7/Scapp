@@ -1,6 +1,6 @@
 {
     "label": "Scapp",
-    "icon": "./frontend/public/images/icons/favicon-32x32.png",
+    "icon": "./frontend/public/images/icons/icon-72x72.png",
     "actions": [
         {
             "name": "Enviroment values test",
