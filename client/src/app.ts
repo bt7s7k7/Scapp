@@ -6,9 +6,9 @@ import { connect } from "ngrok";
 import { createServer } from "http";
 import { AddressInfo } from "net";
 import { server as WebSocketServer } from "websocket";
-import { WEBSOCKET_PROTOCOL } from "../../common/types";
+import { WEBSOCKET_PROTOCOL, IAction } from "../../common/types";
 import { parse, format } from "url";
-import { UserSession, startRuntime, RESTART_EXIT_CODE, log } from "./runtime";
+import { UserSession, startRuntime, RESTART_EXIT_CODE, log, scanTasks, tasks } from "./runtime";
 import { spawn } from "child_process";
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -24,7 +24,7 @@ import { hostname } from "os";
                 var config = await getConfig(localConfig)
                 log(config.allowedUsers.join("\n"))
             },
-            desc: "allowed           - Get userids of allowed users"
+            desc: "allowed             - Get userids of allowed users"
         },
         "id": {
             args: 0,
@@ -32,7 +32,7 @@ import { hostname } from "os";
                 var localConfig = await getLocalConfig()
                 log(localConfig.id)
             },
-            desc: "id                - Returns the id of this client"
+            desc: "id                  - Returns the id of this client"
         },
         "token": {
             args: 0,
@@ -40,7 +40,7 @@ import { hostname } from "os";
                 var localConfig = await getLocalConfig()
                 log(localConfig.accessToken)
             },
-            desc: "token             - Returns the access token of this client"
+            desc: "token               - Returns the access token of this client"
         },
         "allow": {
             args: 1,
@@ -49,7 +49,7 @@ import { hostname } from "os";
                 await changeAllowedUsers(localConfig, [name], [])
                 log(`User allowed`)
             },
-            desc: "allow <userid>    - Allows the userid access to this client"
+            desc: "allow <userid>      - Allows the userid access to this client"
         },
         "disallow": {
             args: 1,
@@ -58,7 +58,7 @@ import { hostname } from "os";
                 await changeAllowedUsers(localConfig, [], [name])
                 log(`User disallowed`)
             },
-            desc: "disallow <userid> - Removes the userid from allowed users"
+            desc: "disallow <userid>   - Removes the userid from allowed users"
         },
         "reset": {
             args: 0,
@@ -69,7 +69,7 @@ import { hostname } from "os";
                 await resetLocalConfig()
                 log(`Reset local config`)
             },
-            desc: "reset             - Deletes all settings and removes the client from the database"
+            desc: "reset               - Deletes all settings and removes the client from the database"
         },
         "name": {
             args: 0,
@@ -78,11 +78,11 @@ import { hostname } from "os";
                 var config = await getConfig(localConfig)
                 log(config.name)
             },
-            desc: "name              - Returns the name of this client"
+            desc: "name                - Returns the name of this client"
         },
         "rename": {
             args: 1,
-            desc: "rename <name>     - Changes the name of this client",
+            desc: "rename <name>       - Changes the name of this client",
             callback: async ([name]) => {
                 var localConfig = await getLocalConfig()
                 await rename(localConfig, name)
@@ -146,7 +146,7 @@ import { hostname } from "os";
         },
         "run": {
             args: 0,
-            desc: "run               - Starts ngrok and websocket host, brings the client online",
+            desc: "run                 - Starts ngrok and websocket host, brings the client online",
             callback() {
                 return new Promise((resolve, reject) => {
                     var start = () => {
@@ -176,7 +176,7 @@ import { hostname } from "os";
         },
         version: {
             args: 0,
-            desc: "version           - Prints the version",
+            desc: "version             - Prints the version",
             callback() {
                 var packageData = JSON.parse(readFileSync(join(__dirname, "../../../package.json")).toString())
                 var version = packageData.version
@@ -185,7 +185,7 @@ import { hostname } from "os";
         },
         register: {
             args: 1,
-            desc: "register <path>   - Registers the path as a task",
+            desc: "register <path>     - Registers the path as a task",
             async callback([path]) {
                 var localConfig = await getLocalConfig()
                 var absolutePath = join(process.cwd(), path)
@@ -196,7 +196,7 @@ import { hostname } from "os";
         },
         unregister: {
             args: 1,
-            desc: "unregister <path> - Registers the path as a task",
+            desc: "unregister <path>   - Registers the path as a task",
             async callback([path]) {
                 var localConfig = await getLocalConfig()
                 var absolutePath = join(process.cwd(), path)
@@ -207,7 +207,7 @@ import { hostname } from "os";
         },
         registered: {
             args: 0,
-            desc: "registered        - Prints all registered tasks",
+            desc: "registered          - Prints all registered tasks",
             async callback() {
                 var localConfig = await getLocalConfig()
                 log(localConfig.taskPaths.join("\n"))
@@ -215,7 +215,7 @@ import { hostname } from "os";
         },
         "path": {
             args: 1,
-            desc: "path <path>       - Sets the clone path",
+            desc: "path <path>         - Sets the clone path",
             async callback([path]) {
                 var localConfig = await getLocalConfig()
                 var absolutePath = join(process.cwd(), path)
@@ -226,7 +226,7 @@ import { hostname } from "os";
         },
         "config": {
             args: 0,
-            desc: "config            - Prints the current config",
+            desc: "config              - Prints the current config",
             async callback() {
                 var localConfig = await getLocalConfig()
                 log(Object.keys(localConfig).filter(v => v != "accessToken").map(v => v + ": " + inspect(localConfig[v], { colors: true })).join("\n"))
@@ -234,7 +234,7 @@ import { hostname } from "os";
         },
         init: {
             args: 1,
-            desc: "init <ownerId>    - Registers this client with the database allowing it to be controlled by the owner",
+            desc: "init <ownerId>      - Registers this client with the database allowing it to be controlled by the owner",
             async callback([id]) {
                 var info = await registerClient(hostname(), id)
                 await saveLocalConfig(Object.assign(await getLocalConfig(), info))
@@ -243,11 +243,72 @@ import { hostname } from "os";
         },
         "delete": {
             args: 0,
-            desc: "delete            - Deltes this client from the database",
+            desc: "delete              - Deltes this client from the database",
             async callback() {
                 var config = await getLocalConfig()
                 await deleteClient(config)
                 log(`Successfully deleted the client, run scapp init to register it again`)
+            }
+        },
+        "startup": {
+            args: 1,
+            desc: "startup <action>    - Sets the action as a startup action",
+            async callback([action]) {
+                var config = await getLocalConfig()
+
+                if (!config.startupActions.includes(action)) {
+                    await scanTasks(config)
+
+                    var actions = [] as string[]
+
+                    Object.values(tasks).forEach(v => v.actions.forEach(w => actions.push(v.id + "@" + w.name)))
+
+                    if (!actions.includes(action)) log(`Action "${action}" does not exist`)
+                    else {
+                        config.startupActions.push(action)
+                        await saveLocalConfig(config)
+                        log(`Action "${action}" set as startup action`)
+                    }
+                }
+                else return log(`Action "${action}" is already set as startup action`)
+            }
+        },
+        "unstartup": {
+            args: 1,
+            desc: "unstartup <action>  - Removes the action from startup actions",
+            async callback([action]) {
+                var config = await getLocalConfig()
+                if (config.startupActions.includes(action)) config.startupActions.splice(config.startupActions.indexOf(action), 1)
+                else return log(`Action ${action} is not set as startup action`)
+                await saveLocalConfig(config)
+                log(`Action "${action}" removed from startup actions`)
+            }
+        },
+        "actions": {
+            args: 0,
+            desc: "actions             - Prints the registered actions",
+            async callback() {
+                var config = await getLocalConfig()
+                await scanTasks(config)
+
+                Object.values(tasks).forEach(task => {
+                    log(task.label + (task.label == task.id ? "" : " ~ " + task.id))
+
+                    var prefixes = {} as { [index: string]: (IAction & { globalId: string })[] }
+
+                    task.actions.forEach((v: IAction) => {
+                        var split = v.name.lastIndexOf("/")
+                        var prefix = v.name.substr(0, split)
+
+                        if (!(prefix in prefixes)) prefixes[prefix] = []
+                        prefixes[prefix].push({ ...v, globalId: task.id + "@" + v.name })
+                    })
+
+                    Object.entries(prefixes).forEach(([prefix, actions]) => {
+                        if (prefix != "") log(`| ` + prefix)
+                        actions.forEach(v => log(`| | ` + v.label + " ~ " + v.globalId))
+                    })
+                })
             }
         }
     } as { [index: string]: { args: number, callback: (args: string[]) => any, desc: string } }
@@ -271,7 +332,9 @@ import { hostname } from "os";
 
     if (process.argv.length != 2) {
         let commandName = process.argv[2]
-        const args = process.argv.slice(3);
+        let args = process.argv.slice(3);
+
+        if (commandName == "startup" || commandName == "unstartup") args = [args.join(" ")]
 
         await runCommand(commandName, args).catch(errorCatcher)
     } else {
@@ -280,6 +343,10 @@ import { hostname } from "os";
         repl.on("line", (line) => {
             if (line == "") return
             var tokens = line.split(" ")
+            if (tokens[0] == "startup" || tokens[0] == "unstartup") {
+                tokens[1] = tokens.slice(1).join(" ")
+                tokens.length = 2
+            }
             runCommand(tokens[0], tokens.slice(1)).catch(errorCatcher)
         })
     }

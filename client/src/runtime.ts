@@ -46,7 +46,7 @@ var runningActions = {
     [thisAction.name]: thisAction
 } as { [index: string]: IRunningAction }
 var activeSessions = {} as { [index: string]: UserSession }
-var tasks = {} as { [index: string]: ITask }
+export var tasks = {} as { [index: string]: ITask }
 
 export async function startRuntime(config: IClientLocalConfig) {
     log("Starting runtime...")
@@ -56,9 +56,28 @@ export async function startRuntime(config: IClientLocalConfig) {
     }, 1000)
     log("Scanning tasks...")
     await scanTasks(config)
+
+    config.startupActions.forEach((v) => {
+        var [taskId, actionId] = v.split("@")
+
+        if (taskId in tasks) {
+            let task = tasks[taskId]
+            let action = task.actions.filter(v => v.name == actionId)[0]
+            if (action) {
+                var result = startAction(taskId, action)
+                if (result instanceof Error) {
+                    log(`Failed to start startup action ${v}, ${result.stack}`)
+                }
+            } else {
+                log(`Failed to start startup action ${v}, action not found`)
+            }
+        } else {
+            log(`Failed to start startup action ${v}, task not found`)
+        }
+    })
 }
 
-function scanTasks(config: IClientLocalConfig) {
+export function scanTasks(config: IClientLocalConfig) {
     tasks = {}
     return Promise.all(config.taskPaths.map(path => new Promise((resolve, reject) => {
         var promises = [] as Promise<any>[]

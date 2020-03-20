@@ -30,7 +30,8 @@ function getDefaultConfig(): IClientLocalConfig {
         taskPaths: [],
         clonePath: join(homedir(), "scapp"),
         accessToken: "",
-        id: ""
+        id: "",
+        startupActions: []
     }
 }
 

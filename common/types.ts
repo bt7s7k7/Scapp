@@ -13,7 +13,8 @@ export interface IClientRegisterInfo {
 
 export interface IClientLocalConfig extends IClientRegisterInfo {
     taskPaths: string[],
-    clonePath: string
+    clonePath: string,
+    startupActions: string[]
 }
 
 export interface IFrontendRequest {
