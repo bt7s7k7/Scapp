@@ -30,25 +30,23 @@ function getUserId(user: string) {
 
 export const registerClient = functions.https.onRequest((request, response) => {
     if ("name" in request.body && "owner" in request.body) {
-        getUserId(request.body.owner).then(valid => {
-            if (valid) {
-                var accessToken = randomBytes(ACCESS_TOKEN_LENGHT).toString("hex")
-                firestore.collection("clients").add({
-                    name: request.body.name,
+        getUserId(request.body.owner).then(id => {
+            var accessToken = randomBytes(ACCESS_TOKEN_LENGHT).toString("hex")
+            firestore.collection("clients").add({
+                name: request.body.name,
+                accessToken,
+                allowedUsers: [id],
+                url: ""
+            } as IClientDocument).then(doc => {
+                response.status(200).send({
                     accessToken,
-                    allowedUsers: [request.body.owner],
-                    url: ""
-                } as IClientDocument).then(doc => {
-                    response.status(200).send({
-                        accessToken,
-                        id: doc.id
-                    } as IClientRegisterInfo)
-                }).catch(err => {
-                    response.status(500).send(err.toString())
-                })
-            } else {
-                response.status(404).send("User with id not found")
-            }
+                    id: doc.id
+                } as IClientRegisterInfo)
+            }).catch(err => {
+                response.status(500).send(err.toString())
+            })
+        }).catch((err) => {
+            response.status(404).send(err.message)
         })
     } else {
         response.status(400).send("Invalid request body")
@@ -173,7 +171,7 @@ export const changeClientAllowedUsers = functions.https.onRequest(async (request
             data = data.data
             isSDK = true
         }
-        
+
         if ("id" in data && "accessToken" in data && "add" in data && data.add instanceof Array && "remove" in data && data.remove instanceof Array) {
             try {
                 var add = await Promise.all(data.add.map(v => getUserId(v)))

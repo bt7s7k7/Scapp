@@ -1,10 +1,11 @@
 <template>
-	<v-container class="my-5">
+	<div class="home-cards">
+        <div v-for="col in cols.num" :key="col">
 		<v-card
-			class="mt-2 mr-2 client-card"
-			v-for="{client, actionsNum, errorsNum, connection, url} in clientCards"
+			v-for="{client, actionsNum, errorsNum, connection, url} in clientCards.filter((_, i) => i % cols.num == col - 1)"
 			:key="client.id"
-			width="230"
+			class="mt-2 mr-2 client-card"
+            width="100%"
 			:to="client.id"
 			hover
 		>
@@ -23,19 +24,34 @@
 						{{ errorsNum }}
 					</template>
 				</template>
-                <template v-else>
-                    <v-icon small class="mr-1" color="orange">mdi-alert-decagram</v-icon>
-                    <span class="grey--text">Brand new</span>
-                </template>
+				<template v-else>
+					<v-icon small class="mr-1" color="orange">mdi-alert-decagram</v-icon>
+					<span class="grey--text">Brand new</span>
+				</template>
 			</v-card-actions>
 		</v-card>
-	</v-container>
+        </div>
+	</div>
 </template>
 
 <style>
 	.client-card {
 		display: inline-block !important;
 	}
+
+	.home-cards {
+        margin: 50px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+
+    .home-cards > * {
+        display: flex;
+        flex: 1 1;
+        padding: 4px;
+        flex-direction: column;
+    }
 </style>
 
 <script lang="ts">
@@ -45,7 +61,16 @@
 	import { db } from "../firebase"
 	import { IClientDocument } from "../../../common/types"
 	import { updateConnections, connections, IConnection } from "../connections"
-	import StatusIndicator from "../components/StatusIndicator.vue"
+    import StatusIndicator from "../components/StatusIndicator.vue"
+
+    var cols = {
+        num: 3
+    }
+
+    window.addEventListener("resize", ()=>{
+        var space = window.innerWidth - 100
+        cols.num = Math.max(1, Math.floor(space / 240))
+    })
 
 	export default Vue.extend({
 		name: "Home",
@@ -55,11 +80,12 @@
 		data: () => ({
 			auth: authStore,
 			clients: [] as (IClientDocument & { id: string })[],
-			connections
+            connections,
+            cols
 		}),
 		mounted(this: Vue) {
 			if (!authStore.currentUser) return
-			this.$bind("clients", db.collection("clients").where("allowedUsers", "array-contains", authStore.currentUser.uid))
+            this.$bind("clients", db.collection("clients").where("allowedUsers", "array-contains", authStore.currentUser.uid))
 		},
 		watch: {
 			clients() {
@@ -72,8 +98,8 @@
 					var connection = this.connections[v.id] as IConnection
 					var actions = Object.values(connection.runningActions)
 					var errorsNum = actions.filter(v => v.exitCode != 0).length
-                    var actionsNum = actions.length - errorsNum - 1
-                    if (connection.state != "online") errorsNum = actionsNum = 0
+					var actionsNum = actions.length - errorsNum - 1
+					if (connection.state != "online") errorsNum = actionsNum = 0
 					return {
 						client: v,
 						actionsNum,
