@@ -41,15 +41,16 @@ function addActionHistory(action: IRunningAction, line: string) {
 
     appendFile(join(homedir(), ".scappLogs", action.file), line, (err) => {
         if (err)
-            if (err.code == "ENOENT") {
+            if (err.code == "ENOENT") { // If the folder does not exist we must have not created it yet, so do that
                 mkdir(join(homedir(), ".scappLogs"), (err) => {
                     if (err) {
                         console.error(err)
                         process.exit(RESTART_EXIT_CODE)
                     } else {
                         appendFile(join(homedir(), ".scappLogs", action.file), line, (err) => {
-                            if (err) {
+                            if (err) { // If there is still an error just give up
                                 let msg = "Failed to write to log, " + err.stack
+                                // Can't use log because it calls this function, may cause an stack overflow or worse
                                 console.error(msg)
                                 thisAction.history.push(msg)
                             }
@@ -63,7 +64,7 @@ function addActionHistory(action: IRunningAction, line: string) {
             }
     })
 }
-
+/** This action represents the scapp process, it's then viewable from the webapp */
 var thisAction = {
     history: [],
     label: "Scapp log",
@@ -73,7 +74,7 @@ var thisAction = {
     exitCode: 0,
     file: makeLogPath("_internal@log")
 } as IRunningAction
-
+/** Custom loggin funciton to log into the webapp viewable action */
 export function log(line: string) {
     console.log(line)
     addActionHistory(thisAction, line + EOL)
@@ -84,7 +85,7 @@ var runningActions = {
 } as { [index: string]: IRunningAction }
 var activeSessions = {} as { [index: string]: UserSession }
 export var tasks = {} as { [index: string]: ITask }
-
+/** Scans for tasks and runs statup actions */
 export async function startRuntime(config: IClientLocalConfig) {
     log("Starting runtime...")
 
@@ -141,6 +142,8 @@ export function scanTasks(config: IClientLocalConfig) {
                         log(`Error loading files in task ${inspect(path, { colors: true })}, ${err.stack}`)
                         resolve()
                     } else {
+                        // Look for files that provide actions
+                        // package.json can provide actions from scripts and a label if there's none
                         if (files.includes("package.json")) {
                             promises.push(new Promise(resolve => {
                                 readFile(join(scanPath, "package.json"), (err, data) => {
@@ -184,7 +187,7 @@ export function scanTasks(config: IClientLocalConfig) {
                                                     name: namePrefix + "npm run " + v
                                                 }))
                                             }
-
+                                            // Set the label of this task from the package.json only if it was not set by a scapp.json, it has presesence
                                             if (scanPath == path && "name" in packageData && !setLabel) {
                                                 task.label = packageData.name
                                             }
@@ -195,7 +198,8 @@ export function scanTasks(config: IClientLocalConfig) {
                                 })
                             }))
                         }
-
+                        // If this is a firebase folder add an deploy action and scan
+                        // for functions directory, it has a npm package.json we can use
                         if (files.includes("firebase.json")) {
                             task.actions.push({
                                 command: "firebase deploy",
@@ -209,7 +213,7 @@ export function scanTasks(config: IClientLocalConfig) {
                                 scanDir(join(scanPath, "functions"), (prefix ? prefix + "/" : "") + "functions")
                             }
                         }
-
+                        // Scapp.json is the main configuration file for scapp, it can provide a label, icon, import other folders, and actions
                         if (files.includes("scapp.json")) {
                             promises.push(new Promise((resolve, reject) => {
                                 var file = join(scanPath, "scapp.json")
@@ -239,7 +243,7 @@ export function scanTasks(config: IClientLocalConfig) {
                                                         } as IAction, v)
 
                                                         if (!("label" in v)) {
-                                                            // @ts-ignore
+                                                            // @ts-ignore TypeScript thinks this can never happen and throws
                                                             v.label = v.name
                                                         }
 
@@ -252,7 +256,7 @@ export function scanTasks(config: IClientLocalConfig) {
                                                         if (typeof v.label != "string") { log(`${file}/action[${i}]/label is not string`); return }
                                                         if (typeof v.command != "string") { log(`${file}/action[${i}]/command is not string`); return }
                                                         if (typeof v.cwd != "string") { log(`${file}/action[${i}]/cwd is not string`); return }
-
+                                                        // Make the cwd relative to the path
                                                         v.cwd = pathResolve(scanPath, v.cwd)
                                                         v.name = (prefix ? prefix + "/" : "") + v.name
 
@@ -267,11 +271,11 @@ export function scanTasks(config: IClientLocalConfig) {
                                                 else {
                                                     let iconPath = taskConfig.icon
 
-                                                    if (iconPath.substr(0, 4) == "mdi-") {
+                                                    if (iconPath.substr(0, 4) == "mdi-") { // If the icon begins with mdi- it can be a material design icon, so just keep it
                                                         task.icon = iconPath
-                                                    } else {
+                                                    } else { 
                                                         try {
-                                                            task.icon = datauri.sync(pathResolve(scanPath, iconPath))
+                                                            task.icon = datauri.sync(pathResolve(scanPath, iconPath)) // Load the target file and save the dataURI
                                                         } catch (err) {
                                                             log(`${file}/icon error while loading file, ${err.stack}`)
                                                         }
@@ -304,7 +308,7 @@ export function scanTasks(config: IClientLocalConfig) {
                                 })
                             }))
                         }
-
+                        // If it's a git directory we can pull so add that
                         if (files.includes(".git")) {
                             task.actions.push({
                                 command: "git pull",
@@ -320,9 +324,9 @@ export function scanTasks(config: IClientLocalConfig) {
                 })
             }))
         }
-
+        // Start the scanning process at path
         scanDir(path, "")
-
+        // This function waits for promises, then checks if any more were pushed, if so waits again
         var wait = () => {
             var lastLength = promises.length
             Promise.all(promises).then(() => {
@@ -419,14 +423,17 @@ export class UserSession {
                 if (request) {
                     var response = {} as IFrontendResponse
 
-                    if (this.verified) {
+                    // The webapp must send a id token to be verified with
+                    // a cloud function to execute commands otherwise anyone
+                    // could connect to the socket and controll the client
+                    if (this.verified) { 
                         if (request.listRunning) {
                             Object.assign(response, this.getRunningActionsRespose())
                         }
 
                         if (request.startTerminal) {
                             let actionId = ""
-                            do {
+                            do { // Make sure the id isn't used
                                 actionId = Math.random().toString().substr(2)
                             } while ("_terminal@" + actionId in runningActions)
 
@@ -447,7 +454,8 @@ export class UserSession {
                         if (request.quickCommand) {
                             var label = request.quickCommand
                             var command = request.quickCommand
-
+                            // Since commads are platfrom specific 
+                            // we must select the base on the platform
                             if (command == "_exit") {
                                 process.exit(0)
                             } else if (command == "_restart") {
@@ -476,7 +484,7 @@ export class UserSession {
                             }
 
                             let actionId = command
-                            while ("_quick@" + actionId in runningActions) {
+                            while ("_quick@" + actionId in runningActions) { // Make sure the id isn't used
                                 actionId = Math.random().toString().substr(2)
                             }
 
@@ -505,7 +513,9 @@ export class UserSession {
                             this.subscribedTo = request.subscribe
                             target.subscribed.push(id)
 
-                            target.history = [target.history.join("")]
+                            // Join the history to reduce memory fragmentation
+                            // and make the packet smaller
+                            target.history = [target.history.join("")] 
                             response.actionTerminalHistory = {
                                 id: request.subscribe,
                                 history: target.history[0]
@@ -578,7 +588,7 @@ export class UserSession {
                                 return
                             }
                             var actions = [] as string[]
-
+                            // Go thru all tasks and push their actions
                             Object.values(tasks).forEach(v => v.actions.forEach(w => actions.push(v.id + "@" + w.name)))
 
                             if (!actions.includes(request.addStartupAction)) {
@@ -646,6 +656,7 @@ export class UserSession {
                 sendError("Wrong message type, only utf8 supported")
             }
         })
+        /** Unsubsribe from receiving action output */
         var unsubsribe = () => {
             if (this.subscribedTo && runningActions[this.subscribedTo]) {
                 let subscribed = runningActions[this.subscribedTo].subscribed

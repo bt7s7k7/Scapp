@@ -8,31 +8,21 @@ firebase.initializeApp()
 var firestore = firebase.firestore()
 var auth = firebase.auth()
 
+/** Needed to run functions from the webapp */
 const corsMiddleware = cors({
     origin: true
 })
 
-
-// // Start writing Firebase Functions
-// // https://firebase.google.com/docs/functions/typescript
-//
-// export const helloWorld = functions.https.onRequest((request, response) => {
-//  response.send("Hello from Firebase!");
-// });
-
-export const testFunction = functions.https.onRequest((request, response) => {
-    response.send("Hello world")
-})
-
-function verifyUserId(id: string) {
+/** Turns emails into uid and verifies that they are real */
+function getUserId(user: string) {
     return new Promise<string>((resolve, reject) => {
-        auth.getUser(id).then(() => {
-            resolve(id)
+        auth.getUser(user).then(() => {
+            resolve(user)
         }).catch(() => {
-            auth.getUserByEmail(id).then(v => {
+            auth.getUserByEmail(user).then(v => {
                 resolve(v.uid)
             }).catch(() => {
-                reject(new Error(`User ${id} not found`))
+                reject(new Error(`User ${user} not found`))
             })
         })
     })
@@ -40,7 +30,7 @@ function verifyUserId(id: string) {
 
 export const registerClient = functions.https.onRequest((request, response) => {
     if ("name" in request.body && "owner" in request.body) {
-        verifyUserId(request.body.owner).then(valid => {
+        getUserId(request.body.owner).then(valid => {
             if (valid) {
                 var accessToken = randomBytes(ACCESS_TOKEN_LENGHT).toString("hex")
                 firestore.collection("clients").add({
@@ -90,7 +80,7 @@ export const getClientConfig = functions.https.onRequest(async (request, respons
         var data = request.body as IClientRegisterInfo
         var isSDK = false
         if ("data" in data) {
-            // @ts-ignore The functions SDK puts all data in a object, but the client puts it at root
+            // @ts-ignore The functions SDK puts all data in an object, but the client puts it at root
             data = data.data
             isSDK = true
         }
@@ -103,7 +93,7 @@ export const getClientConfig = functions.https.onRequest(async (request, respons
                     var userEmails = await Promise.all(docData.allowedUsers.map(async v => {
                         try {
                             return (await auth.getUser(v)).email
-                        } catch (err) {
+                        } catch (err) { // Can't really do much about it
                             return "[ invalid ]"
                         }
                     }))
@@ -186,8 +176,8 @@ export const changeClientAllowedUsers = functions.https.onRequest(async (request
         
         if ("id" in data && "accessToken" in data && "add" in data && data.add instanceof Array && "remove" in data && data.remove instanceof Array) {
             try {
-                var add = await Promise.all(data.add.map(v => verifyUserId(v)))
-                var remove = await Promise.all(data.remove.map(v => verifyUserId(v)))
+                var add = await Promise.all(data.add.map(v => getUserId(v)))
+                var remove = await Promise.all(data.remove.map(v => getUserId(v)))
             } catch (err) {
                 response.status(404).send(err.message)
                 return
@@ -197,12 +187,13 @@ export const changeClientAllowedUsers = functions.https.onRequest(async (request
             if (doc.exists) {
                 const docData = doc.data() as IClientDocument
                 if (docData.accessToken == docData.accessToken) {
+                    // Remove all users in remove
                     let allowedUsers = docData.allowedUsers.filter(v => remove.indexOf(v) == -1)
-
+                    // Add all users in add, except if they are allowed already
                     add.forEach(v => { if (allowedUsers.indexOf(v) == -1) allowedUsers.push(v) })
 
                     if (allowedUsers.length == 0) {
-                        response.status(400).send(`One user must remain allowed`)
+                        response.status(400).send(`One user must remain allowed`) // To prevent orphaned entries in database
                         return
                     }
 
@@ -248,6 +239,10 @@ export const verifyUserToken = functions.https.onRequest(async (request, respons
     }
 })
 
+// This is the only oncall function because it's
+// only called from the webapp, so I can use the SDK
+// (oncall functions can not be called without the SDK), 
+// the advantage of oncall is that all auth stuff is taken care of
 export const changeUserEmail = functions.https.onCall(async (data: { email: string }, context) => {
     if (!("email" in data)) return new functions.https.HttpsError("invalid-argument", "", "Missing email")
     if (!context.auth) return new functions.https.HttpsError("unauthenticated", "")

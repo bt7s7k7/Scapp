@@ -1,11 +1,6 @@
 <template>
-	<v-container class="my-5">
-		<link
-			type="text/css"
-			rel="stylesheet"
-			href="https://cdn.firebase.com/libs/firebaseui/3.5.2/firebaseui.css"
-		/>
-		<v-card class="mx-auto" max-width="400">
+	<v-container style="height: 100%">
+		<v-card class="login-card" max-width="400">
 			<v-card-text>To use scapp you need to login with your Google account</v-card-text>
 			<v-card-actions>
 				<div id="authContainer" class="mx-auto">
@@ -15,6 +10,14 @@
 		</v-card>
 	</v-container>
 </template>
+
+<style>
+    .login-card {
+        margin: auto;
+        top: 50%;
+        transform: translate(0, -100%);
+    }
+</style>
 
 <script lang="ts">
 	import Vue from 'vue'
@@ -29,20 +32,21 @@
 		name: "Login",
 		data: () => ({
 			loading: true,
-			authStore
+            authStore
 		}),
 		mounted() {
-			var authContainer = document.getElementById("authContainer")
+            var authContainer = document.getElementById("authContainer")
 			if (authContainer == null) throw new Error("Cannot find auth container")
 			authUI.start(authContainer, {
 				signInOptions: [firebase.auth.GoogleAuthProvider.PROVIDER_ID],
 				callbacks: {
 					uiShown: () => {
 						this.loading = false
-						// @ts-ignore
-						if (authContainer.clientHeight > 70) {
+                        // This is a hack to determine if 
+                        // the user is logged in before we get an update from firebase
+						if (authContainer && authContainer.clientHeight > 104) {
 							authStore.loading = true
-						}
+                        }
 					},
 					signInSuccessWithAuthResult() {
 						router.push("/")
@@ -50,6 +54,6 @@
 					}
 				}
 			})
-		}
+        }
 	})
 </script>

@@ -16,7 +16,7 @@ export const firebaseApp = firebase.initializeApp({
 
 export const auth = firebaseApp.auth()
 export const functions = firebaseApp.functions()
-
+// Can't read enviroment variables so this will have to do
 if (location.hostname == "localhost") functions.useFunctionsEmulator("http://localhost:5001")
 
 export const authStore = {

@@ -1,6 +1,8 @@
 <template>
 	<v-container class="my-5" v-if="!('loading' in $data) && client.id in connections">
+		<!-- Database edit card -->
 		<v-card class="mx-auto">
+			<!-- Client name -->
 			<v-card-title primary-title>
 				<input class="display-3" v-model="client.name" @change="changeClientName()" style="width: 100%" />
 			</v-card-title>
@@ -8,6 +10,7 @@
 				<status-indicator :status="connections[client.id].state"></status-indicator>
 				<span class="grey--text">{{ client.url }}</span>
 				<v-spacer></v-spacer>
+				<!-- Allowed users dialog -->
 				<v-dialog v-model="usersDialog" max-width="500px">
 					<template v-slot:activator="{ on }">
 						<v-btn fab small text slot="activator" v-on="on">
@@ -21,6 +24,7 @@
 						<v-card-text>
 							<v-list height="70vh" class="scrolling-list">
 								<v-list-item-group>
+									<!-- Allowed user list item -->
 									<v-list-item v-for="{ email, id } in allowedUsers" :key="id">
 										<v-list-item-content>
 											<v-list-item-title>
@@ -28,6 +32,7 @@
 											</v-list-item-title>
 											<span class="grey--text">{{id}}</span>
 										</v-list-item-content>
+										<!-- Remove button, make sure to not let the user delete themselves -->
 										<v-list-item-action v-if="allowedUsers.length > 1 && id != authStore.currentUser.uid">
 											<v-btn fab text small @click="removeUser(id)">
 												<v-icon>mdi-account-remove</v-icon>
@@ -38,6 +43,7 @@
 							</v-list>
 						</v-card-text>
 						<v-card-actions>
+							<!-- User add dialog -->
 							<v-dialog v-model="userAddDialog" max-width="400">
 								<template v-slot:activator="{ on }">
 									<v-btn v-on="on" text fab small>
@@ -50,9 +56,16 @@
 									</v-card-title>
 									<v-form @submit="$event.preventDefault()">
 										<v-card-text>
-											<v-text-field name="userId" label="User ID" id="userId" v-model="userIdToAdd" :error-messages="addUserError"></v-text-field>
+											<v-text-field
+												name="userId"
+												label="User ID"
+												id="userId"
+												v-model="userIdToAdd"
+												:error-messages="addUserError"
+											></v-text-field>
 										</v-card-text>
 										<v-card-actions>
+											<!-- Loading indicator -->
 											<v-progress-circular indeterminate color="primary" v-if="addUserLoading"></v-progress-circular>
 											<v-spacer></v-spacer>
 											<v-btn text @click="addUser(userIdToAdd);" type="submit">add</v-btn>
@@ -61,12 +74,14 @@
 									</v-form>
 								</v-card>
 							</v-dialog>
+							<!-- Loading indicator -->
 							<v-progress-circular indeterminate color="primary" v-if="addUserLoading"></v-progress-circular>
 							<v-spacer></v-spacer>
-							<v-btn text @click.native="usersDialog = false">Save</v-btn>
+							<v-btn text @click.native="usersDialog = false">close</v-btn>
 						</v-card-actions>
 					</v-card>
 				</v-dialog>
+				<!-- Client delete confirm dialog -->
 				<v-dialog v-model="deleteDialog" max-width="400">
 					<template v-slot:activator="{ on }">
 						<v-btn text fab small v-on="on">
@@ -79,7 +94,7 @@
 							This will delete this client and all allowed users from the database.
 							After this the client's access token will be invalidated and you will
 							have to run
-							<code>scapp reset</code>.
+							<code>scapp init</code>.
 						</v-card-text>
 						<v-card-actions>
 							<v-spacer></v-spacer>
@@ -90,27 +105,34 @@
 				</v-dialog>
 			</v-card-actions>
 		</v-card>
+		<!-- All cards that need a websocket connection are here -->
 		<template v-if="connections[client.id] && connections[client.id].state == 'online'">
+			<!-- Running actions card -->
 			<v-card class="mt-2">
 				<v-card-title primary-title>Actions</v-card-title>
 				<v-card-text>
 					<v-list>
 						<v-list-item-group>
+							<!-- Running action list item -->
 							<v-list-item
 								v-for="(action, actionId) in connection.runningActions"
 								:key="actionId"
 								@click="openXterm(actionId, 'action')"
 							>
+								<!-- Error indicator -->
 								<v-list-item-avatar v-if="action.exitCode != 0">
 									<v-icon color="error">mdi-alert</v-icon>
 								</v-list-item-avatar>
+								<!-- Running indicator -->
 								<v-list-item-avatar v-else-if="actionId != '_internal@log'">
+									<!-- Don't show a running indicator for log -->
 									<v-progress-circular color="primary" indeterminate class="progress-float"></v-progress-circular>
 								</v-list-item-avatar>
 								<v-list-item-content class="pa-0">
 									<span>{{ action.label }}</span>
 									<span class="grey--text">{{actionId}}</span>
 								</v-list-item-content>
+								<!-- Kill button, also not shown for log -->
 								<v-list-item-action class="my-0" v-if="actionId != '_internal@log'">
 									<v-btn
 										small
@@ -127,35 +149,71 @@
 						</v-list-item-group>
 					</v-list>
 				</v-card-text>
+				<!-- Quick actions -->
 				<v-card-actions>
-					<v-btn class="hidden-lg-and-up" small @click="startTerminal()" text fab><v-icon>mdi-console</v-icon></v-btn>
-					<v-btn class="hidden-lg-and-up" small text fab @click="quickCommand('_exit')"><v-icon>mdi-stop-circle</v-icon></v-btn>
-					<v-btn class="hidden-lg-and-up" small text fab @click="quickCommand('_restart')"><v-icon>mdi-file-restore</v-icon></v-btn>
-					<v-btn class="hidden-lg-and-up" small text fab @click="quickCommand('_shutdown')"><v-icon>mdi-power</v-icon></v-btn>
-					<v-btn class="hidden-lg-and-up" small text fab @click="quickCommand('_reboot')"><v-icon>mdi-restart</v-icon></v-btn>
-					<v-btn class="hidden-lg-and-up" small text fab @click="quickCommand('_lock')"><v-icon>mdi-lock</v-icon></v-btn>
-					<v-btn class="hidden-lg-and-up" small text fab @click="startupActionsDialog = true"><v-icon>mdi-playlist-play</v-icon></v-btn>
-                    <v-btn class="hidden-lg-and-up" small text fab @click="requestLogs(); logsDialog = true"><v-icon>mdi-file-clock</v-icon></v-btn>
-
-					<v-btn class="hidden-md-and-down" small @click="startTerminal()"><v-icon left>mdi-console</v-icon> New shell</v-btn>
-					<v-btn class="hidden-md-and-down" small @click="quickCommand('_exit')"><v-icon left>mdi-stop-circle</v-icon> Terminate</v-btn>
-					<v-btn class="hidden-md-and-down" small @click="quickCommand('_restart')"><v-icon left>mdi-file-restore</v-icon> Reinit</v-btn>
-					<v-btn class="hidden-md-and-down" small @click="quickCommand('_shutdown')"><v-icon left>mdi-power</v-icon> Shutdown</v-btn>
-					<v-btn class="hidden-md-and-down" small @click="quickCommand('_reboot')"><v-icon left>mdi-restart</v-icon> Reboot</v-btn>
-					<v-btn class="hidden-md-and-down" small @click="quickCommand('_lock')"><v-icon left>mdi-lock</v-icon> Lock</v-btn>
-					<v-btn class="hidden-md-and-down" small @click="startupActionsDialog = true"><v-icon left>mdi-playlist-play</v-icon> Startup</v-btn>
-                    <v-btn class="hidden-md-and-down" small @click="requestLogs(); logsDialog = true"><v-icon left>mdi-file-clock</v-icon> Logs</v-btn>
-                    
+					<!-- For medium and down we show only icons to be mobile friendly -->
+					<v-btn class="hidden-lg-and-up" small @click="startTerminal()" text fab>
+						<v-icon>mdi-console</v-icon>
+					</v-btn>
+					<v-btn class="hidden-lg-and-up" small text fab @click="quickCommand('_exit')">
+						<v-icon>mdi-stop-circle</v-icon>
+					</v-btn>
+					<v-btn class="hidden-lg-and-up" small text fab @click="quickCommand('_restart')">
+						<v-icon>mdi-file-restore</v-icon>
+					</v-btn>
+					<v-btn class="hidden-lg-and-up" small text fab @click="quickCommand('_shutdown')">
+						<v-icon>mdi-power</v-icon>
+					</v-btn>
+					<v-btn class="hidden-lg-and-up" small text fab @click="quickCommand('_reboot')">
+						<v-icon>mdi-restart</v-icon>
+					</v-btn>
+					<v-btn class="hidden-lg-and-up" small text fab @click="quickCommand('_lock')">
+						<v-icon>mdi-lock</v-icon>
+					</v-btn>
+					<v-btn class="hidden-lg-and-up" small text fab @click="startupActionsDialog = true">
+						<v-icon>mdi-playlist-play</v-icon>
+					</v-btn>
+					<v-btn class="hidden-lg-and-up" small text fab @click="requestLogs(); logsDialog = true">
+						<v-icon>mdi-file-clock</v-icon>
+					</v-btn>
+					<!-- For large and up show also text -->
+					<v-btn class="hidden-md-and-down" small @click="startTerminal()">
+						<v-icon left>mdi-console</v-icon>New shell
+					</v-btn>
+					<v-btn class="hidden-md-and-down" small @click="quickCommand('_exit')">
+						<v-icon left>mdi-stop-circle</v-icon>Terminate
+					</v-btn>
+					<v-btn class="hidden-md-and-down" small @click="quickCommand('_restart')">
+						<v-icon left>mdi-file-restore</v-icon>Reinit
+					</v-btn>
+					<v-btn class="hidden-md-and-down" small @click="quickCommand('_shutdown')">
+						<v-icon left>mdi-power</v-icon>Shutdown
+					</v-btn>
+					<v-btn class="hidden-md-and-down" small @click="quickCommand('_reboot')">
+						<v-icon left>mdi-restart</v-icon>Reboot
+					</v-btn>
+					<v-btn class="hidden-md-and-down" small @click="quickCommand('_lock')">
+						<v-icon left>mdi-lock</v-icon>Lock
+					</v-btn>
+					<v-btn class="hidden-md-and-down" small @click="startupActionsDialog = true">
+						<v-icon left>mdi-playlist-play</v-icon>Startup
+					</v-btn>
+					<v-btn class="hidden-md-and-down" small @click="requestLogs(); logsDialog = true">
+						<v-icon left>mdi-file-clock</v-icon>Logs
+					</v-btn>
+					<!-- Startup actions dialog -->
 					<v-dialog v-model="startupActionsDialog" max-width="500px">
 						<v-card>
 							<v-card-title primary-title>Startup actions</v-card-title>
 							<v-card-text>
 								<v-list height="70vh" class="scrolling-list">
 									<v-list-item-group>
+										<!-- Startup action -->
 										<v-list-item v-for="action in connection.startupActions" :key="action">
 											<v-list-item-content>
 												<v-list-item-title>{{ action }}</v-list-item-title>
 											</v-list-item-content>
+											<!-- Remove button -->
 											<v-list-item-action>
 												<v-btn fab text small @click="removeStartupAction(action)">
 													<v-icon>mdi-minus-circle</v-icon>
@@ -170,12 +228,14 @@
 							</v-card-actions>
 						</v-card>
 					</v-dialog>
+					<!-- Logs dialog -->
 					<v-dialog v-model="logsDialog" max-width="700">
 						<v-card>
 							<v-card-title primary-title>Logs</v-card-title>
 							<v-card-text>
 								<v-list class="scrolling-list" height="70vh">
 									<v-list-item-group>
+										<!-- Log list item, opens the terminal with log mode -->
 										<v-list-item v-for="{name, id, date} in logs" :key="id" @click="openXterm(id, 'log')">
 											<v-list-item-content>
 												{{ name }}
@@ -193,13 +253,15 @@
 					</v-dialog>
 				</v-card-actions>
 			</v-card>
-
+			<!-- Terminal dialog -->
 			<v-dialog
 				:value="terminalDialog != 'none'"
 				@click:outside="terminalDialog = 'none'"
 				width="unset"
 			>
+				<!-- Terminal container, the terminal is created from openXterm method -->
 				<div id="xterm" style="height: 510px"></div>
+				<!-- These buttons are absolutely positioned under the dialog -->
 				<v-btn id="terminalCloseButton" text dark @click="terminalDialog = 'none'">close</v-btn>
 				<v-btn
 					id="terminalCloseButton"
@@ -209,6 +271,7 @@
 					@click="killAction(terminalTarget)"
 					v-if="terminalDialog == 'action'"
 				>kill</v-btn>
+				<!-- Loading indicator, absolutely positioned in the center of this dialog, only shows when the terminal is loading -->
 				<v-progress-circular
 					indeterminate
 					color="primary"
@@ -216,8 +279,9 @@
 					v-if="terminalLoading"
 				></v-progress-circular>
 			</v-dialog>
-
+			<!-- Task cards -->
 			<v-card v-for="({task, actions}, taskId) in tasks" :key="taskId" class="mt-2">
+				<!-- Clicking on the title toggles the collapsed state -> if the content shows -->
 				<v-card-title v-ripple @click="toggleCollapsedState(taskId)" style="cursor: pointer">
 					{{ task.label }}
 					<span class="grey--text ml-1" v-if="task.label != taskId">{{ taskId }}</span>
@@ -228,14 +292,19 @@
 						<v-icon>mdi-console</v-icon>
 					</v-btn>
 				</v-card-title>
+				<!-- Taks actions, only show when the task is expanded -->
 				<v-expand-transition>
 					<v-card-text v-show="getCollapsedState(taskId)">
 						<v-list>
+							<!-- The actions are grouped by prefix, ie. firebase/functions/build has prefix firebase/functions -->
 							<v-list-item-group v-for="(actions, prefix) in actions" :key="prefix">
+								<!-- Prefix name -->
 								<v-subheader v-if="prefix != ''" class="headline black--text">{{ prefix }}</v-subheader>
+								<!-- Actions in the prefix -->
 								<v-list-item v-for="action in actions" :key="action.name">
 									<v-list-item-avatar>
 										<v-icon>{{ getActionIcon(action.label) }}</v-icon>
+										<!-- The progress shows the action is running, absolutely positioned in the center of the action avatar -->
 										<template v-if="action.globalId in connection.runningActions">
 											<v-progress-circular
 												color="error"
@@ -246,6 +315,7 @@
 											<v-progress-circular color="primary" indeterminate v-else class="progress-float"></v-progress-circular>
 										</template>
 									</v-list-item-avatar>
+									<!-- Clicking the action will start it, if it's started a terminal will open for it -->
 									<v-list-item-content @click="runAction(action.globalId)">
 										{{ action.label }}
 										<span
@@ -254,6 +324,7 @@
 										>{{ action.name }}</span>
 									</v-list-item-content>
 									<v-list-item-action>
+										<!-- Startup action setting -->
 										<v-btn
 											small
 											text
@@ -280,6 +351,7 @@
 </template>
 
 <style>
+	/* Made for the terminal dialog buttons, they need a absolute position */
 	.v-dialog {
 		position: relative;
 		overflow: visible;
@@ -288,7 +360,7 @@
 	#xterm {
 		width: 1160px;
 	}
-
+	/* Make sure the terminal is not wider than the screen */
 	@media screen and (max-width: 1160px) {
 		#xterm {
 			width: 100vw;
@@ -316,14 +388,14 @@
 		transform: center center;
 	}
 
-    .scrolling-list {
-        overflow: auto;
-    }
+	.scrolling-list {
+		overflow: auto;
+	}
 </style>
 
 <script lang="ts">
 	import Vue from 'vue'
-    import { db, authStore, functions } from "../firebase"
+	import { db, authStore, functions } from "../firebase"
 	import { IClientDocument, IAction, ITask } from "../../../common/types"
 	import { connections, updateConnections, requestActionKill, requestStartTerminal, IConnection, IFrontendRunningAction, sendData, subscribeTo, quickCommand, requestRefreshTasks, requestStartAction, requestStartupActions, addStartupAction, removeStartupAction, requestLogs, getLogContent } from "../connections"
 	import StatusIndicator from "../components/StatusIndicator.vue"
@@ -378,8 +450,8 @@
 			lastLogText: "",
 			terminalLoading: false,
 			allowedUsers: [] as { id: string, email: string }[],
-            addUserLoading: false,
-            addUserError: ""
+			addUserLoading: false,
+			addUserError: ""
 		}),
 		mounted(this: Vue & { terminal: Terminal } & { [index: string]: any }) {
 			this.$bind("client", db.collection("clients").doc(this.clientId))
@@ -424,13 +496,14 @@
 						this.terminalTarget = ""
 					} else if (this.terminal) {
 						if (this.terminalDialog == "action") {
+							// If the terminal is targeting an action that's not running close it
 							if (!(this.terminalTarget in this.connections[this.clientId].runningActions)) {
 								this.terminal = null
 								this.terminalDialog = "none"
 								this.terminalTarget = ""
 							} else {
 								var action = this.connections[this.clientId].runningActions[this.terminalTarget] as IFrontendRunningAction
-
+								// Write all unwritten lines from history to term
 								while (action.history.length > this.terminalLastLine) {
 									this.terminal.write(action.history[this.terminalLastLine])
 									this.terminalLastLine++
@@ -439,6 +512,7 @@
 							}
 						} else if (this.terminalDialog == "log") {
 							if (this.terminalTarget in this.connection.logs) {
+								// Write the log content to the term
 								let text = this.connection.logs[this.terminalTarget]
 								if (text != this.lastLogText) {
 									this.terminal.clear()
@@ -447,13 +521,13 @@
 									this.terminalLoading = false
 								}
 							}
-						} else {
+						} else { // If the terminal type is any other, just close it
 							this.terminal = null
 							this.terminalDialog = "none"
 							this.terminalTarget = ""
 						}
 					}
-
+					// Create list of logs for the dialog
 					this.logs = this.connection.logList.map((filename: string) => {
 						var [name, now] = filename.split("`")
 						var date = new Date(parseInt(now))
@@ -468,20 +542,26 @@
 				},
 				deep: true
 			},
-			terminalDialog() {
+			terminalDialog() { // When the terminal is closed clean up
 				if (this.terminalDialog == "none") {
+					// This is needed because if it stays and the user
+					// opens the same log again, the function will detect
+					// that this and the content inside the connection is
+					// the same and not write anything to the terminal
+					//  causing it to be blank
 					this.lastLogText = ''
 
+					// Remove the old terminal element
 					this.terminal?.element?.remove()
 				}
 			}
 		},
 		methods: {
 			addUser(userId: string) {
-                this.changeUsers([userId], [])
-            },
-            changeUsers(add: string[], remove: string[]) {
-                this.addUserError = ""
+				this.changeUsers([userId], [])
+			},
+			changeUsers(add: string[], remove: string[]) {
+				this.addUserError = ""
 				this.addUserLoading = true
 				functions.httpsCallable("changeClientAllowedUsers")({
 					id: this.client.id,
@@ -489,18 +569,18 @@
 					add,
 					remove
 				}).then(v => {
-                    if (v.data.success) {
-                        this.addUserLoading = false
-                        this.userAddDialog = false
-                    }
+					if (v.data.success) {
+						this.addUserLoading = false
+						this.userAddDialog = false
+					}
 				}).catch(v => {
-                    this.addUserLoading = false
-                    // @ts-ignore Type any cannot index any
-                    this.addUserError = {
-                        "not-found": "User not found"
-                    }[v.code] ?? v.code
-                })
-            },
+					this.addUserLoading = false
+					// @ts-ignore Type any cannot index any
+					this.addUserError = {
+						"not-found": "User not found"
+					}[v.code] ?? v.code
+				})
+			},
 			removeUser(userId: string) {
 				this.changeUsers([], [userId])
 			},
@@ -535,7 +615,7 @@
 			runAction(name: string) {
 				if (!(name in connections[this.clientId].runningActions))
 					requestStartAction(connections[this.clientId], name)
-				else
+				else // If the action is running already open a terminal for it
 					this.openXterm(name, "action")
 			},
 			openXterm(action: string, type: TerminalTargetType) {
@@ -548,26 +628,12 @@
 				this.terminalDialog = type
 				this.terminalTarget = action
 
-				var startTime = Date.now()
-				var open = () => {
-					var termDiv = document.getElementById("xterm") as HTMLDivElement
-					if (!termDiv) {
-						if (this.terminal) {
-							if (Date.now() - startTime < 100) {
-								this.$nextTick(open)
-							} else {
-								throw new Error("Failed to find element for xterm")
-							}
-						}
-					} else {
-						this.$nextTick(() => {
-
-						})
-					}
-				}
-
 				this.terminalLoading = true
 				this.terminal.clear()
+				// Waiting for the dialog to open fully before
+				// opening the terminal, if not the terminal will
+				// detect the wrong width when opening and it will
+				// look wrong, smaller text and such
 				setTimeout(() => {
 					var termDiv = document.getElementById("xterm") as HTMLDivElement
 					termDiv.childNodes.forEach(v => v.remove())
@@ -583,11 +649,12 @@
 						this.terminalLastLine = 0
 					}
 				}, 250)
-				open()
+
 				if (type == "action") subscribeTo(this.connections[this.clientId], action)
 				else if (type == "log") getLogContent(this.connection, action)
 			},
 			getActionIcon(label: string) {
+				// Splitting the label to get the last word, it will be used to index the actionIcons object in $data
 				var labelParts = label.split(/\/|\s/g)
 				var icon = this.actionIcons[labelParts[labelParts.length - 1].toLowerCase()] as string
 				return icon ?? "mdi-help"

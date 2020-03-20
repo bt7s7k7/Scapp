@@ -23,6 +23,7 @@ export function executeFunctionRaw(name: string, data: any) {
         }
 
         const parsedUrl = parse(functionsURL + name)
+        // The local emulator uses http and deploied function uses https
         var requestType = parsedUrl.protocol == "http:" ? httpRequest : httpsRequest
 
         var clientRequest = requestType({

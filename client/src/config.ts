@@ -42,7 +42,8 @@ export function getLocalConfig() {
     return new Promise<IClientLocalConfig>((resolve, reject) => {
         readFile(CONFIG_PATH, async (err, data) => {
             if (err) {
-                if (err.code == "ENOENT") {
+                if (err.code == "ENOENT") { 
+                    // If the file does not exist the make it with default setting and resolve with them
                     resetLocalConfig().then(config => resolve(config)).catch(err => reject(err))
                 } else {
                     reject(err)
@@ -54,6 +55,7 @@ export function getLocalConfig() {
                 } catch (err) {
                     return reject(err)
                 }
+                // Make sure to be backwards compatible
                 config = Object.assign(getDefaultConfig(), config)
 
                 resolve(config)

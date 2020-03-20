@@ -15,7 +15,7 @@
 					<span class="grey--text">{{ url }}</span>
 					<v-spacer></v-spacer>
 					<template v-if="actionsNum > 0">
-						<v-progress-circular indeterminate size="16" color="primary"></v-progress-circular>
+						<v-progress-circular indeterminate size="16" class="mr-1" color="primary"></v-progress-circular>
 						{{ actionsNum }}
 					</template>
 					<template v-if="errorsNum > 0">

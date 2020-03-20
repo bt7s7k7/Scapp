@@ -89,7 +89,7 @@ import { hostname } from "os";
                 log(`Client renamed`)
             }
         },
-        "_run_direct": {
+        "_run_direct": { // This is used internally from the run command
             args: 0,
             desc: "",
             callback: async () => {
@@ -160,6 +160,7 @@ import { hostname } from "os";
             desc: "run                 - Starts ngrok and websocket host, brings the client online",
             callback() {
                 return new Promise((resolve, reject) => {
+                    // Starting a child process so we can restart it on command
                     var start = () => {
                         var child = spawn(process.argv[0], [process.argv[1], "_run_direct"], {
                             stdio: "inherit"
@@ -194,6 +195,7 @@ import { hostname } from "os";
             args: 0,
             desc: "version             - Prints the version",
             callback() {
+                // Read the verision from package.json
                 var packageData = JSON.parse(readFileSync(join(__dirname, "../../../package.json")).toString())
                 var version = packageData.version
                 log(version)
@@ -341,11 +343,11 @@ import { hostname } from "os";
                     await ret
                 }
             }
-        } else {
+        } else { // If the command does not exist print all commads and their description
             log("Commands:\n" + Object.keys(commands).filter(v => v[0] != "_").map(v => "  " + commands[v].desc).join("\n"))
         }
     }
-
+    // If we have arguments run them as command
     if (process.argv.length != 2) {
         let commandName = process.argv[2]
         let args = process.argv.slice(3);
@@ -353,7 +355,7 @@ import { hostname } from "os";
         if (commandName == "startup" || commandName == "unstartup") args = [args.join(" ")]
 
         await runCommand(commandName, args).catch(errorCatcher)
-    } else {
+    } else { // If not start a repl
         var repl = createInterface(process.stdin, process.stdout)
 
         repl.on("line", (line) => {

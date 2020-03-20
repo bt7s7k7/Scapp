@@ -1,5 +1,6 @@
 <template>
 	<v-app>
+        <!-- Only show the actual app when the current user has loaded, otherwise we get errors -->
 		<template v-if="!authStore.loading">
 			<v-app-bar app color="primary" dark dense>
 				<router-link to="/">
@@ -10,14 +11,16 @@
 				<v-spacer></v-spacer>
 				<template v-if="authStore.currentUser != null">
 					<v-btn id="userIdText" @click="userIdDialog = true" text>{{ authStore.currentUser.email }}</v-btn>
+                    <!-- User Account dialog -->
 					<v-dialog v-model="userIdDialog" max-width="400">
 						<template v-slot:activator="{ on }">
+                            <!-- On small screens this icon replaces the big button with the email -->
 							<v-btn v-on="on" id="userIdDialogButton" text fab small>
 								<v-icon>mdi-account</v-icon>
 							</v-btn>
 						</template>
 						<v-card>
-							<v-card-title>User ID</v-card-title>
+							<v-card-title>User Account</v-card-title>
 							<v-card-text>
 								{{ authStore.currentUser.uid }}
 								<v-row align="center" style="margin-left: 0" class="mt-2">
@@ -27,6 +30,9 @@
 										:error-messages="emailChangeError"
 										@keydown.enter="saveEmail()"
 									></v-text-field>
+                                    <!-- The loading indicator, when waiting for a cloud function,
+                                         it has such large margin to take up the same space a the save
+                                         button which it replaces -->
 									<v-progress-circular
 										indeterminate
 										color="primary"
@@ -67,7 +73,7 @@
 	#userIdText {
 		text-transform: none;
 	}
-
+    /* Hide the user id on small screens and replace it with an icon */
 	@media screen and (max-width: 420px) {
 		#userIdText {
 			display: none;
@@ -77,7 +83,8 @@
 			display: initial;
 		}
 	}
-
+    /* The custom scrollbar only works in Chrome but
+       it's not important enough to for me to care */
 	*::-webkit-scrollbar {
 		width: 8px;
 	}
@@ -114,13 +121,14 @@
 				deep: true,
 				handler() {
 					if (!authStore.loading) {
+                        // Rediret to login screen if not logged in and from login screen if logged in
 						if (authStore.currentUser == null && router.currentRoute.path != "/login") router.push("/login")
 						if (authStore.currentUser != null && router.currentRoute.path == "/login") router.push("/")
 					}
 				}
 			},
 			userIdDialog() {
-				if (this.userIdDialog) {
+				if (this.userIdDialog) { // Reset text field values when opened
 					this.email = authStore.currentUser?.email ?? ""
 					this.emailChangeError = ""
 				}

@@ -10,7 +10,7 @@ Vue.use(firestorePlugin)
 
 new Vue({
     router,
-    // @ts-ignore
+    // @ts-ignore Because vuetify doesn't have @types, and any doesn't work for some reason
     vuetify,
     render: h => h(App)
 }).$mount('#app')
