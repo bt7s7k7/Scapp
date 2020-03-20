@@ -99,13 +99,14 @@
 					var actions = Object.values(connection.runningActions)
 					var errorsNum = actions.filter(v => v.exitCode != 0).length
 					var actionsNum = actions.length - errorsNum - 1
-					if (connection.state != "online") errorsNum = actionsNum = 0
+                    if (connection.state != "online") errorsNum = actionsNum = 0
+                    var url = v.url.includes("ngrok") ? v.url.split(".")[0] : v.url
 					return {
 						client: v,
 						actionsNum,
 						errorsNum,
 						connection,
-						url: v.url.split(".")[0]
+						url
 					}
 				})
 			}

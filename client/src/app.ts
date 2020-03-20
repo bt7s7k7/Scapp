@@ -7,13 +7,48 @@ import { createServer } from "http";
 import { AddressInfo } from "net";
 import { server as WebSocketServer } from "websocket";
 import { WEBSOCKET_PROTOCOL, IAction, IClientDocument } from "../../common/types";
-import { parse, format } from "url";
+import { parse, format, UrlWithStringQuery } from "url";
 import { UserSession, startRuntime, RESTART_EXIT_CODE, log, scanTasks, tasks, RESTART_AND_WAIT_EXIT_CODE } from "./runtime";
 import { spawn } from "child_process";
-import { readFileSync } from "fs";
+import { readFileSync, openSync } from "fs";
 import { join } from "path";
 import { inspect } from "util";
-import { hostname } from "os";
+import { hostname, networkInterfaces } from "os";
+
+type RunType = "ngrok" | "lan"
+
+var runner = (directArgument: RunType, ip: string = "") => () => {
+    return new Promise((resolve, reject) => {
+        // Starting a child process so we can restart it on command
+        var start = () => {
+            var child = spawn(process.argv[0], [process.argv[1], "_run_direct", directArgument, ip], {
+                stdio: "inherit"
+            })
+
+            child.on("close", (code) => {
+                if (code == RESTART_EXIT_CODE) {
+                    log("\n-- Restart --\n")
+                    start()
+                } else if (code == RESTART_AND_WAIT_EXIT_CODE) {
+                    log("\n-- Restarting in 1m --\n")
+                    setTimeout(() => {
+                        start()
+                    }, 1000 * 60)
+                } else {
+                    resolve()
+                }
+            })
+
+            child.on("error", (err) => {
+                console.error(err)
+                debugger
+                process.exit(1)
+            })
+        }
+
+        start()
+    })
+}
 
 (async () => {
     var commands = {
@@ -90,9 +125,11 @@ import { hostname } from "os";
             }
         },
         "_run_direct": { // This is used internally from the run command
-            args: 0,
+            args: 2,
             desc: "",
-            callback: async () => {
+            callback: async (args) => {
+                var type = args[0] as RunType
+                var ip = args[1]
                 var localConfig = await getLocalConfig()
                 var server = createServer((request, response) => {
                     response.end("This is a websocket port");
@@ -122,28 +159,33 @@ import { hostname } from "os";
                         })
 
                         var startTime = Date.now()
-
-                        var url = await connect({
-                            addr: port,
-                            onStatusChange: (status) => {
-                                if (status == "closed") {
-                                    log(`Connection lost`)
-                                    process.exit(RESTART_AND_WAIT_EXIT_CODE)
+                        var wsUrl = null as UrlWithStringQuery
+                        if (type == "ngrok") {
+                            let url = await connect({
+                                addr: port,
+                                onStatusChange: (status) => {
+                                    if (status == "closed") {
+                                        log(`Connection lost`)
+                                        process.exit(RESTART_AND_WAIT_EXIT_CODE)
+                                    }
+                                },
+                                onLogEvent: (msg) => {
+                                    if (msg.includes("a successful ngrok tunnel session has not yet been established") && Date.now() - startTime > 10000) {
+                                        log(`Failed to connect`)
+                                        process.exit(RESTART_AND_WAIT_EXIT_CODE)
+                                    }
                                 }
-                            },
-                            onLogEvent: (msg) => {
-                                if (msg.includes("a successful ngrok tunnel session has not yet been established") && Date.now() - startTime > 10000) {
-                                    log(`Failed to connect`)
-                                    process.exit(RESTART_AND_WAIT_EXIT_CODE)
-                                }
-                            }
-                        })
+                            })
 
-                        var wsUrl = parse(url)
+                            wsUrl = parse(url)
+                            wsUrl.protocol = "wss"
 
-                        wsUrl.protocol = "wss"
+                            log(`ngrok connected, url is ${url}, formated as ${format(wsUrl)}`)
+                        } else if (type == "lan") {
+                            wsUrl = parse("ws://" + ip + ":" + port)
 
-                        log(`ngrok connected, url is ${url}, formated as ${format(wsUrl)}`)
+                            log(`Using local IP address ${format(wsUrl)}`)
+                        }
                         await setNgrokUrl(localConfig, format(wsUrl))
 
                         log("URL is now set in remote")
@@ -158,39 +200,20 @@ import { hostname } from "os";
         "run": {
             args: 0,
             desc: "run                 - Starts ngrok and websocket host, brings the client online",
-            callback() {
-                return new Promise((resolve, reject) => {
-                    // Starting a child process so we can restart it on command
-                    var start = () => {
-                        var child = spawn(process.argv[0], [process.argv[1], "_run_direct"], {
-                            stdio: "inherit"
-                        })
-
-                        child.on("close", (code) => {
-                            if (code == RESTART_EXIT_CODE) {
-                                log("\n-- Restart --\n")
-                                start()
-                            } else if (code == RESTART_AND_WAIT_EXIT_CODE) {
-                                log("\n-- Restarting in 1m --\n")
-                                setTimeout(() => {
-                                    start()
-                                }, 1000 * 60)
-                            } else {
-                                resolve()
-                            }
-                        })
-
-                        child.on("error", (err) => {
-                            console.error(err)
-                            debugger
-                            process.exit(1)
-                        })
-                    }
-
-                    start()
-                })
-            }
+            callback: runner("ngrok")
         },
+        "lan": {
+            args: 1,
+            desc: "run <address>       - Starts the host with the provided local IP address",
+            callback: ([ip]) => runner("lan", ip)()
+        },
+        lans: {
+            args: 0,
+            desc: "lans                - Prints IPv4 addresses of all network interfaces",
+            callback() {
+                Object.values(networkInterfaces()).forEach(v=>v.filter(v=>v.family == "IPv4").forEach(v=>log(v.address)))
+            }
+        }
         version: {
             args: 0,
             desc: "version             - Prints the version",
