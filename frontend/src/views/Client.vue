@@ -102,7 +102,7 @@
 							<v-list-item
 								v-for="(action, actionId) in connection.runningActions"
 								:key="actionId"
-								@click="openXterm(actionId)"
+								@click="openXterm(actionId, 'action')"
 							>
 								<v-list-item-avatar v-if="action.exitCode != 0">
 									<v-icon color="error">mdi-alert</v-icon>
@@ -166,13 +166,54 @@
 							</v-card-actions>
 						</v-card>
 					</v-dialog>
+					<v-dialog v-model="logsDialog" max-width="700">
+						<template v-slot:activator="{ on }">
+							<v-btn class="ml-2" small v-on="on" @click="requestLogs()">logs</v-btn>
+						</template>
+						<v-card>
+							<v-card-title primary-title>Logs</v-card-title>
+							<v-card-text>
+								<v-list class="scroll-y" height="70vh">
+									<v-list-item-group>
+										<v-list-item v-for="{name, id, date} in logs" :key="id" @click="openXterm(id, 'log')">
+											<v-list-item-content>
+												{{ name }}
+												<span class="grey--text">{{ date }}</span>
+											</v-list-item-content>
+										</v-list-item>
+									</v-list-item-group>
+								</v-list>
+							</v-card-text>
+							<v-card-actions>
+								<v-spacer></v-spacer>
+								<v-btn text @click="logsDialog = false">close</v-btn>
+							</v-card-actions>
+						</v-card>
+					</v-dialog>
 				</v-card-actions>
 			</v-card>
 
-			<v-dialog v-model="terminalDialog" width="unset">
+			<v-dialog
+				:value="terminalDialog != 'none'"
+				@click:outside="terminalDialog = 'none'"
+				width="unset"
+			>
 				<div id="xterm" style="height: 510px"></div>
-				<v-btn id="terminalCloseButton" text dark @click="terminalDialog = false">close</v-btn>
-				<v-btn id="terminalCloseButton" style="right: 70px" text dark @click="killAction(terminalTarget)">kill</v-btn>
+				<v-btn id="terminalCloseButton" text dark @click="terminalDialog = 'none'">close</v-btn>
+				<v-btn
+					id="terminalCloseButton"
+					style="right: 70px"
+					text
+					dark
+					@click="killAction(terminalTarget)"
+                    v-if="terminalDialog == 'action'"
+				>kill</v-btn>
+				<v-progress-circular
+					indeterminate
+					color="primary"
+					id="terminalLoadSpinner"
+					v-if="terminalLoading"
+				></v-progress-circular>
 			</v-dialog>
 
 			<v-card v-for="({task, actions}, taskId) in tasks" :key="taskId" class="mt-2">
@@ -211,18 +252,21 @@
 											v-if="action.label != action.name"
 										>{{ action.name }}</span>
 									</v-list-item-content>
-                                    <v-list-item-action>
-                                        <v-btn small text fab color="success" v-if="connection.startupActions.includes(action.globalId)" @click="removeStartupAction(action.globalId)">
-                                            <v-icon>
-                                                mdi-playlist-play
-                                            </v-icon>
-                                        </v-btn>
-                                        <v-btn small text fab color="grey" v-else  @click="addStartupAction(action.globalId)">
-                                            <v-icon>
-                                                mdi-playlist-play
-                                            </v-icon>
-                                        </v-btn>
-                                    </v-list-item-action>
+									<v-list-item-action>
+										<v-btn
+											small
+											text
+											fab
+											color="success"
+											v-if="connection.startupActions.includes(action.globalId)"
+											@click="removeStartupAction(action.globalId)"
+										>
+											<v-icon>mdi-playlist-play</v-icon>
+										</v-btn>
+										<v-btn small text fab color="grey" v-else @click="addStartupAction(action.globalId)">
+											<v-icon>mdi-playlist-play</v-icon>
+										</v-btn>
+									</v-list-item-action>
 								</v-list-item>
 							</v-list-item-group>
 						</v-list>
@@ -263,18 +307,34 @@
 		top: 4px;
 		left: 4px;
 	}
+
+	#terminalLoadSpinner {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: center center;
+	}
 </style>
 
 <script lang="ts">
 	import Vue from 'vue'
 	import { db, authStore } from "../firebase"
 	import { IClientDocument, IAction, ITask } from "../../../common/types"
-	import { connections, updateConnections, requestActionKill, requestStartTerminal, IConnection, IFrontendRunningAction, sendData, subscribeTo, quickCommand, requestRefreshTasks, requestStartAction, requestStartupActions, addStartupAction, removeStartupAction } from "../connections"
+	import { connections, updateConnections, requestActionKill, requestStartTerminal, IConnection, IFrontendRunningAction, sendData, subscribeTo, quickCommand, requestRefreshTasks, requestStartAction, requestStartupActions, addStartupAction, removeStartupAction, requestLogs, getLogContent } from "../connections"
 	import StatusIndicator from "../components/StatusIndicator.vue"
 	import firebase from "firebase/app"
 	import router from '../router'
 	import { Terminal } from "xterm"
 	import "xterm/css/xterm.css"
+
+	type TerminalTargetType = "none" | "action" | "log"
+
+	interface LogFile {
+		date: string
+		name: string
+		id: string
+		now: number
+	}
 
 	export default Vue.extend({
 		name: "Client",
@@ -289,7 +349,7 @@
 			userIdToAdd: "",
 			authStore,
 			deleteDialog: false,
-			terminalDialog: false,
+			terminalDialog: "none" as TerminalTargetType,
 			terminalTarget: "",
 			terminal: null as Terminal | null,
 			terminalLastLine: 0,
@@ -307,7 +367,11 @@
 				"pull": "mdi-folder-download"
 			} as { [index: string]: string },
 			collapsedState: {} as { [index: string]: boolean },
-			startupActionsDialog: false
+			startupActionsDialog: false,
+			logs: [] as LogFile[],
+			logsDialog: false,
+			lastLogText: "",
+			terminalLoading: false
 		}),
 		mounted(this: Vue & { terminal: Terminal } & { [index: string]: any }) {
 			this.$bind("client", db.collection("clients").doc(this.clientId))
@@ -349,22 +413,60 @@
 				handler() {
 					if (this.connections[this.clientId].state != "online") {
 						this.terminal = null
-						this.terminalDialog = false
-						this.terminalTarget = ""
-					} else if (this.terminal && !(this.terminalTarget in this.connections[this.clientId].runningActions)) {
-						this.terminal = null
-						this.terminalDialog = false
+						this.terminalDialog = "none"
 						this.terminalTarget = ""
 					} else if (this.terminal) {
-						var action = this.connections[this.clientId].runningActions[this.terminalTarget] as IFrontendRunningAction
+						if (this.terminalDialog == "action") {
+							if (!(this.terminalTarget in this.connections[this.clientId].runningActions)) {
+								this.terminal = null
+								this.terminalDialog = "none"
+								this.terminalTarget = ""
+							} else {
+								var action = this.connections[this.clientId].runningActions[this.terminalTarget] as IFrontendRunningAction
 
-						while (action.history.length > this.terminalLastLine) {
-							this.terminal.write(action.history[this.terminalLastLine])
-							this.terminalLastLine++
+								while (action.history.length > this.terminalLastLine) {
+									this.terminal.write(action.history[this.terminalLastLine])
+									this.terminalLastLine++
+									this.terminalLoading = false
+								}
+							}
+						} else if (this.terminalDialog == "log") {
+							if (this.terminalTarget in this.connection.logs) {
+								let text = this.connection.logs[this.terminalTarget]
+								if (text != this.lastLogText) {
+									this.terminal.clear()
+									this.terminal.write(text)
+									this.lastLogText = text
+									this.terminalLoading = false
+								}
+							}
+						} else {
+							this.terminal = null
+							this.terminalDialog = "none"
+							this.terminalTarget = ""
 						}
 					}
+
+					this.logs = this.connection.logList.map((filename: string) => {
+						var [name, now] = filename.split("`")
+						var date = new Date(parseInt(now))
+
+						return {
+							id: filename,
+							now: date.getTime(),
+							name,
+							date: `${date.getDate()}. ${date.getMonth() + 1}. ${date.getFullYear()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`
+						} as LogFile
+					}).sort((a, b) => b.now - a.now)
 				},
 				deep: true
+			},
+			terminalDialog() {
+				if (this.terminalDialog == "none") {
+					this.lastLogText = ''
+
+					this.terminal?.element?.remove()
+				}
 			}
 		},
 		methods: {
@@ -403,20 +505,23 @@
 			refreshTasks() {
 				requestRefreshTasks(connections[this.clientId])
 			},
+			requestLogs() {
+				requestLogs(this.connection)
+			},
 			runAction(name: string) {
 				if (!(name in connections[this.clientId].runningActions))
 					requestStartAction(connections[this.clientId], name)
 				else
-					this.openXterm(name)
+					this.openXterm(name, "action")
 			},
-			openXterm(action: string) {
+			openXterm(action: string, type: TerminalTargetType) {
 				this.terminal = new Terminal({
 					cols: 145,
 					rows: 30,
 					convertEol: true
 				})
 
-				this.terminalDialog = true
+				this.terminalDialog = type
 				this.terminalTarget = action
 
 				var startTime = Date.now()
@@ -437,24 +542,26 @@
 					}
 				}
 
+				this.terminalLoading = true
+                this.terminal.clear()
 				setTimeout(() => {
 					var termDiv = document.getElementById("xterm") as HTMLDivElement
 					termDiv.childNodes.forEach(v => v.remove())
 					if (this.terminal) {
 						this.terminal.open(termDiv)
 						this.terminal.onData((data) => {
-							sendData(this.connections[this.clientId], this.terminalTarget, data)
+							if (type == "action") sendData(this.connections[this.clientId], this.terminalTarget, data)
 						})
 
 						var term = this.terminal as Terminal
 						var connection = this.connections[this.clientId] as IConnection
 						var targetAction = connection.runningActions[action]
-						term.clear()
 						this.terminalLastLine = 0
 					}
-				}, 200)
+				}, 250)
 				open()
-				subscribeTo(this.connections[this.clientId], action)
+				if (type == "action") subscribeTo(this.connections[this.clientId], action)
+				else if (type == "log") getLogContent(this.connection, action)
 			},
 			getActionIcon(label: string) {
 				var labelParts = label.split(/\/|\s/g)

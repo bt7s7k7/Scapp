@@ -19,7 +19,9 @@ export interface IConnection {
     },
     verified: boolean,
     tasks: { [index: string]: ITask },
-    startupActions: string[]
+    startupActions: string[],
+    logs: {[index: string]: string},
+    logList: string[]
 }
 
 export const connections = {} as { [index: string]: IConnection }
@@ -33,7 +35,9 @@ function createConnection(client: IClientDocument & { id: string }) {
         verified: false,
         tasks: {},
         startupActions: [],
-        websocket: null
+        websocket: null,
+        logs: {},
+        logList: []
     } as IConnection
 
     createWebsocket(client, connection)
@@ -120,6 +124,14 @@ function createWebsocket(client: IClientDocument & { id: string }, connection: I
             if (response.startupActions) {
                 Vue.set(connection, "startupActions", response.startupActions)
             }
+
+            if (response.logContent) {
+                Vue.set(connection.logs, response.logContent.id, response.logContent.content)
+            }
+
+            if (response.logs) {
+                Vue.set(connection, "logList", response.logs)
+            }
         })
 
         Vue.set(connection, "websocket", websocket)
@@ -179,4 +191,12 @@ export function removeStartupAction(connection: IConnection, action: string) {
 
 export function requestStartupActions(connection: IConnection) {
     connection.websocket?.send(JSON.stringify({ getStartupActions: true } as IFrontendRequest))
+}
+
+export function requestLogs(connection: IConnection) {
+    connection.websocket?.send(JSON.stringify({ getLogs: true } as IFrontendRequest))
+}
+
+export function getLogContent(connection: IConnection, id: string) {
+    connection.websocket?.send(JSON.stringify({ readLog: id } as IFrontendRequest))
 }

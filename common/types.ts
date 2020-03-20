@@ -32,7 +32,9 @@ export interface IFrontendRequest {
     startAction: string,
     getStartupActions: boolean,
     addStartupAction: string,
-    removeStartupAction: string
+    removeStartupAction: string,
+    readLog: string,
+    getLogs: boolean
 }
 
 export interface IRunningActionInfo {
@@ -54,7 +56,12 @@ export interface IFrontendResponse {
         history: string
     },
     tasks: { [index: string]: ITask },
-    startupActions: string[]
+    startupActions: string[],
+    logs: [],
+    logContent: {
+        id: string,
+        content: string
+    }
 }
 
 export interface IAction {

@@ -2,8 +2,8 @@ import { connection as Connection } from "websocket"
 import { IFrontendResponse, IFrontendRequest, IRunningActionInfo, IClientRegisterInfo, IClientLocalConfig, ITask, IAction } from "../../common/types"
 import { verifyIDToken } from "./functions"
 import { spawn, IPty } from "node-pty"
-import { homedir, EOL } from "os"
-import { readdir, readFile } from "fs"
+import { homedir, EOL, hostname } from "os"
+import { readdir, readFile, appendFile, mkdir } from "fs"
 import { inspect } from "util"
 import { join, basename, resolve as pathResolve } from "path"
 import * as datauri from "datauri"
@@ -20,7 +20,8 @@ interface IRunningAction {
     process: IPty,
     history: string[],
     subscribed: string[],
-    exitCode: number
+    exitCode: number,
+    file: string
 }
 
 interface ITaskConfig {
@@ -30,18 +31,52 @@ interface ITaskConfig {
     icon: string
 }
 
+function makeLogPath(id: string) {
+    var date = new Date()
+    return `${id}${"`"}${Date.now()}.txt`
+}
+
+function addActionHistory(action: IRunningAction, line: string) {
+    action.history.push(line)
+
+    appendFile(join(homedir(), ".scappLogs", action.file), line, (err) => {
+        if (err)
+            if (err.code == "ENOENT") {
+                mkdir(join(homedir(), ".scappLogs"), (err) => {
+                    if (err) {
+                        console.error(err)
+                        process.exit(RESTART_EXIT_CODE)
+                    } else {
+                        appendFile(join(homedir(), ".scappLogs", action.file), line, (err) => {
+                            if (err) {
+                                let msg = "Failed to write to log, " + err.stack
+                                console.error(msg)
+                                thisAction.history.push(msg)
+                            }
+                        })
+                    }
+                })
+            } else {
+                let msg = "Failed to create log directory, " + err.stack
+                console.error(msg)
+                thisAction.history.push(msg)
+            }
+    })
+}
+
 var thisAction = {
     history: [],
     label: "Scapp log",
     name: "_internal@log",
     process: null,
     subscribed: [],
-    exitCode: 0
+    exitCode: 0,
+    file: makeLogPath("_internal@log")
 } as IRunningAction
 
 export function log(line: string) {
     console.log(line)
-    thisAction.history.push(line + EOL)
+    addActionHistory(thisAction, line + EOL)
 }
 
 var runningActions = {
@@ -324,12 +359,13 @@ export function startAction(context: string, action: IAction) {
         process,
         label: action.label,
         subscribed: [],
-        exitCode: 0
+        exitCode: 0,
+        file: makeLogPath(context + "@" + action.name)
     } as IRunningAction
 
     var onOut = (data) => {
         var chunk = data.toString()
-        runningAction.history.push(chunk)
+        addActionHistory(runningAction, chunk)
 
         runningAction.subscribed.forEach(v => {
             activeSessions[v]?.sendActionUpdate(runningAction.name, chunk)
@@ -555,12 +591,39 @@ export class UserSession {
                                 })
                             }
                         }
-                        
+
                         if (request.removeStartupAction) {
                             if (localConfig.startupActions.includes(request.removeStartupAction)) localConfig.startupActions.splice(localConfig.startupActions.indexOf(request.removeStartupAction), 1)
                             else return sendError(`Action ${request.removeStartupAction} is not set as startup action`)
                             saveLocalConfig(localConfig).then(() => {
                                 Object.values(activeSessions).forEach(v => v.sendStartupActions())
+                            })
+                        }
+
+                        if (request.getLogs) {
+                            readdir(join(homedir(), ".scappLogs"), (err, files) => {
+                                if (err) {
+                                    sendError(err.stack)
+                                } else {
+                                    connection.send(JSON.stringify({
+                                        logs: files
+                                    } as IFrontendResponse))
+                                }
+                            })
+                        }
+
+                        if (request.readLog) {
+                            readFile(join(homedir(), ".scappLogs", request.readLog), (err, data) => {
+                                if (err) {
+                                    sendError(err.stack)
+                                } else {
+                                    connection.send(JSON.stringify({
+                                        logContent: {
+                                            id: request.readLog,
+                                            content: data.toString()
+                                        }
+                                    } as IFrontendResponse))
+                                }
                             })
                         }
                     }
