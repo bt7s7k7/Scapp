@@ -127,19 +127,26 @@
 						</v-list-item-group>
 					</v-list>
 				</v-card-text>
-				<v-card-actions style="overflow: auto">
-					<v-btn small @click="startTerminal()">
-						<v-icon right>mdi-console</v-icon>new shell
-					</v-btn>
-					<v-btn small @click="quickCommand('_exit')">kill process</v-btn>
-					<v-btn small @click="quickCommand('_restart')">restart process</v-btn>
-					<v-btn small @click="quickCommand('_shutdown')">shutdown</v-btn>
-					<v-btn small @click="quickCommand('_reboot')">reboot</v-btn>
-					<v-btn small @click="quickCommand('_lock')">lock</v-btn>
+				<v-card-actions>
+					<v-btn class="hidden-lg-and-up" small @click="startTerminal()" text fab><v-icon>mdi-console</v-icon></v-btn>
+					<v-btn class="hidden-lg-and-up" small text fab @click="quickCommand('_exit')"><v-icon>mdi-stop-circle</v-icon></v-btn>
+					<v-btn class="hidden-lg-and-up" small text fab @click="quickCommand('_restart')"><v-icon>mdi-file-restore</v-icon></v-btn>
+					<v-btn class="hidden-lg-and-up" small text fab @click="quickCommand('_shutdown')"><v-icon>mdi-power</v-icon></v-btn>
+					<v-btn class="hidden-lg-and-up" small text fab @click="quickCommand('_reboot')"><v-icon>mdi-restart</v-icon></v-btn>
+					<v-btn class="hidden-lg-and-up" small text fab @click="quickCommand('_lock')"><v-icon>mdi-lock</v-icon></v-btn>
+					<v-btn class="hidden-lg-and-up" small text fab @click="startupActionsDialog = true"><v-icon>mdi-playlist-play</v-icon></v-btn>
+                    <v-btn class="hidden-lg-and-up" small text fab @click="requestLogs(); logsDialog = true"><v-icon>mdi-file-clock</v-icon></v-btn>
+
+					<v-btn class="hidden-md-and-down" small @click="startTerminal()"><v-icon left>mdi-console</v-icon> New shell</v-btn>
+					<v-btn class="hidden-md-and-down" small @click="quickCommand('_exit')"><v-icon left>mdi-stop-circle</v-icon> Terminate</v-btn>
+					<v-btn class="hidden-md-and-down" small @click="quickCommand('_restart')"><v-icon left>mdi-file-restore</v-icon> Reinit</v-btn>
+					<v-btn class="hidden-md-and-down" small @click="quickCommand('_shutdown')"><v-icon left>mdi-power</v-icon> Shutdown</v-btn>
+					<v-btn class="hidden-md-and-down" small @click="quickCommand('_reboot')"><v-icon left>mdi-restart</v-icon> Reboot</v-btn>
+					<v-btn class="hidden-md-and-down" small @click="quickCommand('_lock')"><v-icon left>mdi-lock</v-icon> Lock</v-btn>
+					<v-btn class="hidden-md-and-down" small @click="startupActionsDialog = true"><v-icon left>mdi-playlist-play</v-icon> Startup</v-btn>
+                    <v-btn class="hidden-md-and-down" small @click="requestLogs(); logsDialog = true"><v-icon left>mdi-file-clock</v-icon> Logs</v-btn>
+                    
 					<v-dialog v-model="startupActionsDialog" max-width="500px">
-						<template v-slot:activator="{ on }">
-							<v-btn class="ml-2" small v-on="on">startup actions</v-btn>
-						</template>
 						<v-card>
 							<v-card-title primary-title>Startup actions</v-card-title>
 							<v-card-text>
@@ -164,9 +171,6 @@
 						</v-card>
 					</v-dialog>
 					<v-dialog v-model="logsDialog" max-width="700">
-						<template v-slot:activator="{ on }">
-							<v-btn class="ml-2" small v-on="on" @click="requestLogs()">logs</v-btn>
-						</template>
 						<v-card>
 							<v-card-title primary-title>Logs</v-card-title>
 							<v-card-text>
