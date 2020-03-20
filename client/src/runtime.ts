@@ -33,7 +33,7 @@ interface ITaskConfig {
 
 function makeLogPath(id: string) {
     var date = new Date()
-    return `${id}${"`"}${Date.now()}.txt`
+    return `${id.replace(/\//g, "!")}${"`"}${Date.now()}.txt`
 }
 
 function addActionHistory(action: IRunningAction, line: string) {
@@ -42,9 +42,9 @@ function addActionHistory(action: IRunningAction, line: string) {
     appendFile(join(homedir(), ".scappLogs", action.file), line, (err) => {
         if (err)
             if (err.code == "ENOENT") { // If the folder does not exist we must have not created it yet, so do that
-                mkdir(join(homedir(), ".scappLogs"), (err) => {
-                    if (err) {
-                        console.error(err)
+                mkdir(join(homedir(), ".scappLogs"), (err2) => {
+                    if (err2) {
+                        console.error(`Failed to create log, ${err.stack}, then failed to create folder, ${err2.stack}`)
                         process.exit(RESTART_EXIT_CODE)
                     } else {
                         appendFile(join(homedir(), ".scappLogs", action.file), line, (err) => {
