@@ -66,6 +66,16 @@
 			display: initial;
 		}
 	}
+
+	*::-webkit-scrollbar {
+		width: 8px;
+	}
+	*::-webkit-scrollbar-track {
+		background-color: #eeeeee;
+	}
+	*::-webkit-scrollbar-thumb {
+		background-color: #dddddd;
+	}
 </style>
 
 <script lang="ts">
