@@ -8,7 +8,7 @@ import { AddressInfo } from "net";
 import { server as WebSocketServer } from "websocket";
 import { WEBSOCKET_PROTOCOL, IAction } from "../../common/types";
 import { parse, format } from "url";
-import { UserSession, startRuntime, RESTART_EXIT_CODE, log, scanTasks, tasks } from "./runtime";
+import { UserSession, startRuntime, RESTART_EXIT_CODE, log, scanTasks, tasks, RESTART_AND_WAIT_EXIT_CODE } from "./runtime";
 import { spawn } from "child_process";
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -121,10 +121,21 @@ import { hostname } from "os";
                             }
                         })
 
+                        var startTime = Date.now()
+
                         var url = await connect({
                             addr: port,
                             onStatusChange: (status) => {
-                                log(`ngrok status is now ${status}`)
+                                if (status == "closed") {
+                                    log(`Connection lost`)
+                                    process.exit(RESTART_AND_WAIT_EXIT_CODE)
+                                }
+                            },
+                            onLogEvent: (msg) => {
+                                if (msg.includes("a successful ngrok tunnel session has not yet been established") && Date.now() - startTime > 10000) {
+                                    log(`Failed to connect`)
+                                    process.exit(RESTART_AND_WAIT_EXIT_CODE)
+                                }
                             }
                         })
 
@@ -158,6 +169,11 @@ import { hostname } from "os";
                             if (code == RESTART_EXIT_CODE) {
                                 log("\n-- Restart --\n")
                                 start()
+                            } else if (code == RESTART_AND_WAIT_EXIT_CODE) {
+                                log("\n-- Restarting in 1m --\n")
+                                setTimeout(()=>{
+                                    start()
+                                }, 1000 * 60)
                             } else {
                                 resolve()
                             }

@@ -9,6 +9,7 @@ import { join, basename, resolve as pathResolve } from "path"
 import * as datauri from "datauri"
 
 export const RESTART_EXIT_CODE = 50214
+export const RESTART_AND_WAIT_EXIT_CODE = 50215
 
 export const DEFAULT_SHELL = process.env.COMSPEC || process.env.SHELL
 
