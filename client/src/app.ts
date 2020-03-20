@@ -6,7 +6,7 @@ import { connect } from "ngrok";
 import { createServer } from "http";
 import { AddressInfo } from "net";
 import { server as WebSocketServer } from "websocket";
-import { WEBSOCKET_PROTOCOL, IAction } from "../../common/types";
+import { WEBSOCKET_PROTOCOL, IAction, IClientDocument } from "../../common/types";
 import { parse, format } from "url";
 import { UserSession, startRuntime, RESTART_EXIT_CODE, log, scanTasks, tasks, RESTART_AND_WAIT_EXIT_CODE } from "./runtime";
 import { spawn } from "child_process";
@@ -21,8 +21,8 @@ import { hostname } from "os";
             args: 0,
             callback: async () => {
                 var localConfig = await getLocalConfig()
-                var config = await getConfig(localConfig)
-                log(config.allowedUsers.join("\n"))
+                var config = await getConfig(localConfig) as IClientDocument & { userEmails: string[] }
+                log(config.allowedUsers.map((v, i) => config.userEmails[i] + " ~ " + v).join("\n"))
             },
             desc: "allowed             - Get userids of allowed users"
         },
@@ -171,7 +171,7 @@ import { hostname } from "os";
                                 start()
                             } else if (code == RESTART_AND_WAIT_EXIT_CODE) {
                                 log("\n-- Restarting in 1m --\n")
-                                setTimeout(()=>{
+                                setTimeout(() => {
                                     start()
                                 }, 1000 * 60)
                             } else {

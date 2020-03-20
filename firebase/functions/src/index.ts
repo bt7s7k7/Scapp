@@ -1,11 +1,17 @@
 import * as functions from 'firebase-functions';
 import * as firebase from "firebase-admin"
+import * as cors from "cors"
+import { IClientDocument, ACCESS_TOKEN_LENGHT, IClientRegisterInfo } from "../../../common/types"
+import { randomBytes } from "crypto"
+
 firebase.initializeApp()
 var firestore = firebase.firestore()
 var auth = firebase.auth()
 
-import { IClientDocument, ACCESS_TOKEN_LENGHT, IClientRegisterInfo } from "../../../common/types"
-import { randomBytes } from "crypto"
+const corsMiddleware = cors({
+    origin: true
+})
+
 
 // // Start writing Firebase Functions
 // // https://firebase.google.com/docs/functions/typescript
@@ -19,11 +25,15 @@ export const testFunction = functions.https.onRequest((request, response) => {
 })
 
 function verifyUserId(id: string) {
-    return new Promise<boolean>(resolve => {
+    return new Promise<string>((resolve, reject) => {
         auth.getUser(id).then(() => {
-            resolve(true)
+            resolve(id)
         }).catch(() => {
-            resolve(false)
+            auth.getUserByEmail(id).then(v => {
+                resolve(v.uid)
+            }).catch(() => {
+                reject(new Error(`User ${id} not found`))
+            })
         })
     })
 }
@@ -76,22 +86,39 @@ export const deleteClient = functions.https.onRequest(async (request, response) 
 })
 
 export const getClientConfig = functions.https.onRequest(async (request, response) => {
-    var data = request.body as IClientRegisterInfo
-    if ("id" in data && "accessToken" in data) {
-        let doc = await firestore.collection("clients").doc(data.id).get()
-        if (doc.exists) {
-            const docData = doc.data() as FirebaseFirestore.DocumentData
-            if (docData.accessToken == docData.accessToken) {
-                response.status(200).send(docData)
+    corsMiddleware(request, response, async () => {
+        var data = request.body as IClientRegisterInfo
+        var isSDK = false
+        if ("data" in data) {
+            // @ts-ignore The functions SDK puts all data in a object, but the client puts it at root
+            data = data.data
+            isSDK = true
+        }
+
+        if ("id" in data && "accessToken" in data) {
+            let doc = await firestore.collection("clients").doc(data.id).get()
+            if (doc.exists) {
+                const docData = doc.data() as IClientDocument
+                if (docData.accessToken == docData.accessToken) {
+                    var userEmails = await Promise.all(docData.allowedUsers.map(async v => {
+                        try {
+                            return (await auth.getUser(v)).email
+                        } catch (err) {
+                            return "[ invalid ]"
+                        }
+                    }))
+                    if (isSDK) response.status(200).send({ data: { ...docData, userEmails } })
+                    else response.status(200).send({ ...docData, userEmails })
+                } else {
+                    response.status(403).send("Wrong access token")
+                }
             } else {
-                response.status(403).send("Wrong access token")
+                response.status(404).send("Document not found")
             }
         } else {
-            response.status(404).send("Document not found")
+            response.status(400).send("Invalid request body " + JSON.stringify(request.body))
         }
-    } else {
-        response.status(400).send("Invalid request body")
-    }
+    })
 })
 
 export const renameClient = functions.https.onRequest(async (request, response) => {
@@ -148,47 +175,54 @@ export const setClientUrl = functions.https.onRequest(async (request, response) 
 
 
 export const changeClientAllowedUsers = functions.https.onRequest(async (request, response) => {
-    var data = request.body as IClientRegisterInfo & { add: string[], remove: string[] }
-    if ("id" in data && "accessToken" in data && "add" in data && data.add instanceof Array && "remove" in data && data.remove instanceof Array) {
-        var valid = await Promise.all(data.add.map(v => verifyUserId(v)))
+    corsMiddleware(request, response, async () => {
+        var data = request.body as IClientRegisterInfo & { add: string[], remove: string[] }
+        var isSDK = false
+        if ("data" in data) {
+            // @ts-ignore The functions SDK puts all data in a object, but the client puts it at root
+            data = data.data
+            isSDK = true
+        }
         
-        for (let i = 0; i < valid.length; i++) {
-            if (!valid[i]) {
-                response.status(404).send(`User with id ${data.add[i]} was not found`)
+        if ("id" in data && "accessToken" in data && "add" in data && data.add instanceof Array && "remove" in data && data.remove instanceof Array) {
+            try {
+                var add = await Promise.all(data.add.map(v => verifyUserId(v)))
+                var remove = await Promise.all(data.remove.map(v => verifyUserId(v)))
+            } catch (err) {
+                response.status(404).send(err.message)
                 return
             }
-        }
 
-        let doc = await firestore.collection("clients").doc(data.id).get()
-        if (doc.exists) {
-            const docData = doc.data() as IClientDocument
-            if (docData.accessToken == docData.accessToken) {
-                let allowedUsers = docData.allowedUsers.filter(v => data.remove.indexOf(v) == -1)
+            let doc = await firestore.collection("clients").doc(data.id).get()
+            if (doc.exists) {
+                const docData = doc.data() as IClientDocument
+                if (docData.accessToken == docData.accessToken) {
+                    let allowedUsers = docData.allowedUsers.filter(v => remove.indexOf(v) == -1)
 
-                data.add.forEach(v => { if (allowedUsers.indexOf(v) == -1) allowedUsers.push(v) })
+                    add.forEach(v => { if (allowedUsers.indexOf(v) == -1) allowedUsers.push(v) })
 
-                if (allowedUsers.length == 0) {
-                    response.status(400).send(`One user must remain allowed`)
-                    return
-                }
+                    if (allowedUsers.length == 0) {
+                        response.status(400).send(`One user must remain allowed`)
+                        return
+                    }
 
-                doc.ref.update({ allowedUsers: allowedUsers } as IClientDocument)
-                    .then(() => {
-                        response.status(200).send({
-                            success: true
+                    doc.ref.update({ allowedUsers: allowedUsers } as IClientDocument)
+                        .then(() => {
+                            if (isSDK) response.status(200).send({ data: { success: true } })
+                            else response.status(200).send({ success: true })
+                        }).catch(err => {
+                            response.status(500).send(err.toString())
                         })
-                    }).catch(err => {
-                        response.status(500).send(err.toString())
-                    })
+                } else {
+                    response.status(403).send("Wrong access token")
+                }
             } else {
-                response.status(403).send("Wrong access token")
+                response.status(404).send("Document not found")
             }
         } else {
-            response.status(404).send("Document not found")
+            response.status(400).send("Invalid request body")
         }
-    } else {
-        response.status(400).send("Invalid request body")
-    }
+    })
 })
 
 export const verifyUserToken = functions.https.onRequest(async (request, response) => {
@@ -212,4 +246,17 @@ export const verifyUserToken = functions.https.onRequest(async (request, respons
     } else {
         response.status(400).send("Invalid request body")
     }
+})
+
+export const changeUserEmail = functions.https.onCall(async (data: { email: string }, context) => {
+    if (!("email" in data)) return new functions.https.HttpsError("invalid-argument", "", "Missing email")
+    if (!context.auth) return new functions.https.HttpsError("unauthenticated", "")
+    try {
+        await auth.updateUser(context.auth.uid, {
+            email: data.email
+        })
+    } catch (err) {
+        return new functions.https.HttpsError("not-found", "", err.message)
+    }
+    return { success: true }
 })

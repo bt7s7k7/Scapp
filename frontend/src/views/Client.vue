@@ -21,16 +21,15 @@
 						<v-card-text>
 							<v-list>
 								<v-list-item-group>
-									<v-list-item v-for="user in client.allowedUsers" :key="user">
+									<v-list-item v-for="{ email, id } in allowedUsers" :key="id">
 										<v-list-item-content>
 											<v-list-item-title>
-												<span :class="user == authStore.currentUser.uid ? 'green--text' : ''">{{ user }}</span>
+												<span :class="id == authStore.currentUser.uid ? 'green--text' : ''">{{ email }}</span>
 											</v-list-item-title>
+											<span class="grey--text">{{id}}</span>
 										</v-list-item-content>
-										<v-list-item-action
-											v-if="client.allowedUsers.length > 1 && user != authStore.currentUser.uid"
-										>
-											<v-btn fab text small @click="removeUser(user)">
+										<v-list-item-action v-if="allowedUsers.length > 1 && id != authStore.currentUser.uid">
+											<v-btn fab text small @click="removeUser(id)">
 												<v-icon>mdi-account-remove</v-icon>
 											</v-btn>
 										</v-list-item-action>
@@ -51,20 +50,18 @@
 									</v-card-title>
 									<v-form @submit="$event.preventDefault()">
 										<v-card-text>
-											<v-text-field name="userId" label="User ID" id="userId" v-model="userIdToAdd"></v-text-field>
+											<v-text-field name="userId" label="User ID" id="userId" v-model="userIdToAdd" :error-messages="addUserError"></v-text-field>
 										</v-card-text>
 										<v-card-actions>
+											<v-progress-circular indeterminate color="primary" v-if="addUserLoading"></v-progress-circular>
 											<v-spacer></v-spacer>
-											<v-btn
-												text
-												@click="addUser(userIdToAdd); userAddDialog = false; userIdToAdd = ''"
-												type="submit"
-											>add</v-btn>
+											<v-btn text @click="addUser(userIdToAdd);" type="submit">add</v-btn>
 											<v-btn text @click="userAddDialog = false; userIdToAdd = ''">cancel</v-btn>
 										</v-card-actions>
 									</v-form>
 								</v-card>
 							</v-dialog>
+							<v-progress-circular indeterminate color="primary" v-if="addUserLoading"></v-progress-circular>
 							<v-spacer></v-spacer>
 							<v-btn text @click.native="usersDialog = false">Save</v-btn>
 						</v-card-actions>
@@ -206,7 +203,7 @@
 					text
 					dark
 					@click="killAction(terminalTarget)"
-                    v-if="terminalDialog == 'action'"
+					v-if="terminalDialog == 'action'"
 				>kill</v-btn>
 				<v-progress-circular
 					indeterminate
@@ -318,7 +315,7 @@
 
 <script lang="ts">
 	import Vue from 'vue'
-	import { db, authStore } from "../firebase"
+    import { db, authStore, functions } from "../firebase"
 	import { IClientDocument, IAction, ITask } from "../../../common/types"
 	import { connections, updateConnections, requestActionKill, requestStartTerminal, IConnection, IFrontendRunningAction, sendData, subscribeTo, quickCommand, requestRefreshTasks, requestStartAction, requestStartupActions, addStartupAction, removeStartupAction, requestLogs, getLogContent } from "../connections"
 	import StatusIndicator from "../components/StatusIndicator.vue"
@@ -371,12 +368,13 @@
 			logs: [] as LogFile[],
 			logsDialog: false,
 			lastLogText: "",
-			terminalLoading: false
+			terminalLoading: false,
+			allowedUsers: [] as { id: string, email: string }[],
+            addUserLoading: false,
+            addUserError: ""
 		}),
 		mounted(this: Vue & { terminal: Terminal } & { [index: string]: any }) {
 			this.$bind("client", db.collection("clients").doc(this.clientId))
-			// @ts-ignore
-			window["clientView"] = this
 		},
 		props: {
 			clientId: String
@@ -408,6 +406,7 @@
 		watch: {
 			client() {
 				updateConnections([this.client])
+				this.refreshAllowedUsers()
 			},
 			connections: {
 				handler() {
@@ -471,14 +470,31 @@
 		},
 		methods: {
 			addUser(userId: string) {
-				db.collection("clients").doc(this.clientId).update({
-					allowedUsers: firebase.firestore.FieldValue.arrayUnion(userId) as any as string[]
-				} as IClientDocument)
-			},
+                this.changeUsers([userId], [])
+            },
+            changeUsers(add: string[], remove: string[]) {
+                this.addUserError = ""
+				this.addUserLoading = true
+				functions.httpsCallable("changeClientAllowedUsers")({
+					id: this.client.id,
+					accessToken: this.client.accessToken,
+					add,
+					remove
+				}).then(v => {
+                    if (v.data.success) {
+                        this.addUserLoading = false
+                        this.userAddDialog = false
+                    }
+				}).catch(v => {
+                    this.addUserLoading = false
+                    // @ts-ignore Type any cannot index any
+                    this.addUserError = {
+                        "not-found": "User not found"
+                    }[v.code] ?? v.code
+                })
+            },
 			removeUser(userId: string) {
-				db.collection("clients").doc(this.clientId).update({
-					allowedUsers: firebase.firestore.FieldValue.arrayRemove(userId) as any as string[]
-				} as IClientDocument)
+				this.changeUsers([], [userId])
 			},
 			deleteClient() {
 				db.collection("clients").doc(this.clientId).delete()
@@ -543,7 +559,7 @@
 				}
 
 				this.terminalLoading = true
-                this.terminal.clear()
+				this.terminal.clear()
 				setTimeout(() => {
 					var termDiv = document.getElementById("xterm") as HTMLDivElement
 					termDiv.childNodes.forEach(v => v.remove())
@@ -584,6 +600,16 @@
 			},
 			getCollapsedState(id: string) {
 				return this.collapsedState[id] ?? localStorage.getItem("taskCollapse_" + this.clientId + "_" + id) == "true"
+			},
+			refreshAllowedUsers() {
+				functions.httpsCallable("getClientConfig")({
+					id: this.client.id,
+					accessToken: this.client.accessToken
+				}).then((result: { data: { allowedUsers: string[], userEmails: string[] } }) => {
+					if ("allowedUsers" in result.data) {
+						this.allowedUsers = result.data.allowedUsers.map((v, i) => ({ id: v, email: result.data.userEmails[i] }))
+					}
+				})
 			}
 		}
 

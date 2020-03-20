@@ -1,6 +1,7 @@
 import * as firebase from "firebase/app"
 import "firebase/auth"
 import "firebase/firestore"
+import "firebase/functions"
 
 export const firebaseApp = firebase.initializeApp({
     apiKey: "AIzaSyD6rSFHcbvP6ZtSDH9JniL_IFbdTDjoUEk",
@@ -14,6 +15,9 @@ export const firebaseApp = firebase.initializeApp({
 })
 
 export const auth = firebaseApp.auth()
+export const functions = firebaseApp.functions()
+
+if (location.hostname == "localhost") functions.useFunctionsEmulator("http://localhost:5001")
 
 export const authStore = {
     currentUser: auth.currentUser,
