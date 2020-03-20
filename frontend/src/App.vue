@@ -21,8 +21,19 @@
 							<v-card-text>
 								{{ authStore.currentUser.uid }}
 								<v-row align="center" style="margin-left: 0" class="mt-2">
-									<v-text-field label="Email" v-model="email" :error-messages="emailChangeError" @keydown.enter="saveEmail()"></v-text-field>
-                                    <v-progress-circular indeterminate color="primary" size="32" class="mx-5" v-if="emailChangeLoading"></v-progress-circular>
+									<v-text-field
+										label="Email"
+										v-model="email"
+										:error-messages="emailChangeError"
+										@keydown.enter="saveEmail()"
+									></v-text-field>
+									<v-progress-circular
+										indeterminate
+										color="primary"
+										size="32"
+										class="mx-5"
+										v-if="emailChangeLoading"
+									></v-progress-circular>
 									<v-btn text @click="saveEmail()" v-else>save</v-btn>
 								</v-row>
 							</v-card-text>
@@ -93,9 +104,9 @@
 			authStore,
 			auth,
 			userIdDialog: false,
-            email: "",
-            emailChangeLoading: false,
-            emailChangeError: ""
+			email: "",
+			emailChangeLoading: false,
+			emailChangeError: ""
 		}),
 
 		watch: {
@@ -110,26 +121,26 @@
 			},
 			userIdDialog() {
 				if (this.userIdDialog) {
-                    this.email = authStore.currentUser?.email ?? ""
-                    this.emailChangeError = ""
-                }
+					this.email = authStore.currentUser?.email ?? ""
+					this.emailChangeError = ""
+				}
 			}
 		},
 		methods: {
 			saveEmail() {
-                this.emailChangeLoading = true
+				this.emailChangeLoading = true
 				functions.httpsCallable("changeUserEmail")({
-                    email: this.email
+					email: this.email
 				}).then(result => {
-                    if (!result.data.success) {
-                        this.emailChangeError = result.data.details
-                    } else {
-                        if (authStore.currentUser) authStore.currentUser.email = this.email
-                    }
-                    this.emailChangeLoading = false
+					if (!result.data.success) {
+						this.emailChangeError = result.data.details
+					} else {
+						if (authStore.currentUser) authStore.currentUser.email = this.email
+					}
+					this.emailChangeLoading = false
 				}).catch(err => {
-                    this.emailChangeLoading = false
-                })
+					this.emailChangeLoading = false
+				})
 			}
 		}
 	});
