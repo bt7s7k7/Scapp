@@ -27,7 +27,9 @@
 												<span :class="user == authStore.currentUser.uid ? 'green--text' : ''">{{ user }}</span>
 											</v-list-item-title>
 										</v-list-item-content>
-										<v-list-item-action v-if="client.allowedUsers.length > 1 && user != authStore.currentUser.uid">
+										<v-list-item-action
+											v-if="client.allowedUsers.length > 1 && user != authStore.currentUser.uid"
+										>
 											<v-btn fab text small @click="removeUser(user)">
 												<v-icon>mdi-account-remove</v-icon>
 											</v-btn>
@@ -137,6 +139,33 @@
 					<v-btn small @click="quickCommand('_shutdown')">shutdown</v-btn>
 					<v-btn small @click="quickCommand('_reboot')">reboot</v-btn>
 					<v-btn small @click="quickCommand('_lock')">lock</v-btn>
+					<v-dialog v-model="startupActionsDialog" max-width="500px">
+						<template v-slot:activator="{ on }">
+							<v-btn class="ml-2" small v-on="on">startup actions</v-btn>
+						</template>
+						<v-card>
+							<v-card-title primary-title>Startup actions</v-card-title>
+							<v-card-text>
+								<v-list>
+									<v-list-item-group>
+										<v-list-item v-for="action in connection.startupActions" :key="action">
+											<v-list-item-content>
+												<v-list-item-title>{{ action }}</v-list-item-title>
+											</v-list-item-content>
+											<v-list-item-action>
+												<v-btn fab text small @click="removeStartupAction(action)">
+													<v-icon>mdi-minus-circle</v-icon>
+												</v-btn>
+											</v-list-item-action>
+										</v-list-item>
+									</v-list-item-group>
+								</v-list>
+							</v-card-text>
+							<v-card-actions>
+								<v-btn text @click="startupActionsDialog = false">close</v-btn>
+							</v-card-actions>
+						</v-card>
+					</v-dialog>
 				</v-card-actions>
 			</v-card>
 
@@ -181,6 +210,18 @@
 											v-if="action.label != action.name"
 										>{{ action.name }}</span>
 									</v-list-item-content>
+                                    <v-list-item-action>
+                                        <v-btn small text fab color="success" v-if="connection.startupActions.includes(action.globalId)" @click="removeStartupAction(action.globalId)">
+                                            <v-icon>
+                                                mdi-playlist-play
+                                            </v-icon>
+                                        </v-btn>
+                                        <v-btn small text fab color="grey" v-else  @click="addStartupAction(action.globalId)">
+                                            <v-icon>
+                                                mdi-playlist-play
+                                            </v-icon>
+                                        </v-btn>
+                                    </v-list-item-action>
 								</v-list-item>
 							</v-list-item-group>
 						</v-list>
@@ -227,7 +268,7 @@
 	import Vue from 'vue'
 	import { db, authStore } from "../firebase"
 	import { IClientDocument, IAction, ITask } from "../../../common/types"
-	import { connections, updateConnections, requestActionKill, requestStartTerminal, IConnection, IFrontendRunningAction, sendData, subscribeTo, quickCommand, requestRefreshTasks, requestStartAction } from "../connections"
+	import { connections, updateConnections, requestActionKill, requestStartTerminal, IConnection, IFrontendRunningAction, sendData, subscribeTo, quickCommand, requestRefreshTasks, requestStartAction, requestStartupActions, addStartupAction, removeStartupAction } from "../connections"
 	import StatusIndicator from "../components/StatusIndicator.vue"
 	import firebase from "firebase/app"
 	import router from '../router'
@@ -264,7 +305,8 @@
 				"logs": "mdi-text-box-outline",
 				"pull": "mdi-folder-download"
 			} as { [index: string]: string },
-			collapsedState: {} as { [index: string]: boolean }
+			collapsedState: {} as { [index: string]: boolean },
+			startupActionsDialog: false
 		}),
 		mounted(this: Vue & { terminal: Terminal } & { [index: string]: any }) {
 			this.$bind("client", db.collection("clients").doc(this.clientId))
@@ -344,6 +386,15 @@
 			},
 			quickCommand(command: string) {
 				quickCommand(connections[this.clientId], command)
+			},
+			addStartupAction(action: string) {
+				addStartupAction(connections[this.clientId], action)
+			},
+			removeStartupAction(action: string) {
+				removeStartupAction(connections[this.clientId], action)
+			},
+			getStartupActions() {
+				requestStartupActions(connections[this.clientId])
 			},
 			startTerminal(cwd: string | true = true) {
 				requestStartTerminal(connections[this.clientId], cwd)

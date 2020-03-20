@@ -18,7 +18,8 @@ export interface IConnection {
         [index: string]: IFrontendRunningAction
     },
     verified: boolean,
-    tasks: { [index: string]: ITask }
+    tasks: { [index: string]: ITask },
+    startupActions: string[]
 }
 
 export const connections = {} as { [index: string]: IConnection }
@@ -30,7 +31,9 @@ function createConnection(client: IClientDocument & { id: string }) {
         url: client.url,
         runningActions: {},
         verified: false,
-        tasks: {}
+        tasks: {},
+        startupActions: [],
+        websocket: null
     } as IConnection
 
     createWebsocket(client, connection)
@@ -113,6 +116,10 @@ function createWebsocket(client: IClientDocument & { id: string }, connection: I
             if (response.tasks) {
                 Vue.set(connection, "tasks", response.tasks)
             }
+
+            if (response.startupActions) {
+                Vue.set(connection, "startupActions", response.startupActions)
+            }
         })
 
         Vue.set(connection, "websocket", websocket)
@@ -160,4 +167,16 @@ export function subscribeTo(connection: IConnection, actionName: string) {
 
 export function quickCommand(connection: IConnection, command: string) {
     connection.websocket?.send(JSON.stringify({ quickCommand: command } as IFrontendRequest))
+}
+
+export function addStartupAction(connection: IConnection, action: string) {
+    connection.websocket?.send(JSON.stringify({ addStartupAction: action } as IFrontendRequest))
+}
+
+export function removeStartupAction(connection: IConnection, action: string) {
+    connection.websocket?.send(JSON.stringify({ removeStartupAction: action } as IFrontendRequest))
+}
+
+export function requestStartupActions(connection: IConnection) {
+    connection.websocket?.send(JSON.stringify({ getStartupActions: true } as IFrontendRequest))
 }

@@ -7,6 +7,7 @@ import { readdir, readFile } from "fs"
 import { inspect } from "util"
 import { join, basename, resolve as pathResolve } from "path"
 import * as datauri from "datauri"
+import { saveLocalConfig } from "./config"
 
 export const RESTART_EXIT_CODE = 50214
 export const RESTART_AND_WAIT_EXIT_CODE = 50215
@@ -530,6 +531,38 @@ export class UserSession {
                                 return
                             }
                         }
+
+                        if (request.getStartupActions) {
+                            response.startupActions = localConfig.startupActions
+                        }
+
+                        if (request.addStartupAction) {
+                            if (localConfig.startupActions.includes(request.addStartupAction)) {
+                                sendError(`Action ${request.addStartupAction} is already set as startup action`)
+                                return
+                            }
+                            var actions = [] as string[]
+
+                            Object.values(tasks).forEach(v => v.actions.forEach(w => actions.push(v.id + "@" + w.name)))
+
+                            if (!actions.includes(request.addStartupAction)) {
+                                sendError(`Action ${request.addStartupAction} does not exist`)
+                                return
+                            } else {
+                                localConfig.startupActions.push(request.addStartupAction)
+                                saveLocalConfig(localConfig).then(() => {
+                                    Object.values(activeSessions).forEach(v => v.sendStartupActions())
+                                })
+                            }
+                        }
+                        
+                        if (request.removeStartupAction) {
+                            if (localConfig.startupActions.includes(request.removeStartupAction)) localConfig.startupActions.splice(localConfig.startupActions.indexOf(request.removeStartupAction), 1)
+                            else return sendError(`Action ${request.removeStartupAction} is not set as startup action`)
+                            saveLocalConfig(localConfig).then(() => {
+                                Object.values(activeSessions).forEach(v => v.sendStartupActions())
+                            })
+                        }
                     }
 
                     if (request.idToken) {
@@ -539,6 +572,7 @@ export class UserSession {
                                 connection.send(JSON.stringify({ verified: true } as IFrontendResponse))
                                 this.sendRunningActions()
                                 this.sendTasksUpdate()
+                                this.sendStartupActions()
                             }
                         })
                     }
@@ -576,5 +610,9 @@ export class UserSession {
 
     sendTasksUpdate() {
         if (this.verified) this.connection.send(JSON.stringify({ tasks } as IFrontendResponse))
+    }
+
+    sendStartupActions() {
+        if (this.verified) this.connection.send(JSON.stringify({ startupActions: this.localConfig.startupActions } as IFrontendResponse))
     }
 }

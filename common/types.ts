@@ -29,7 +29,10 @@ export interface IFrontendRequest {
     },
     quickCommand: string,
     rescanTasks: boolean,
-    startAction: string
+    startAction: string,
+    getStartupActions: boolean,
+    addStartupAction: string,
+    removeStartupAction: string
 }
 
 export interface IRunningActionInfo {
@@ -50,7 +53,8 @@ export interface IFrontendResponse {
         id: string,
         history: string
     },
-    tasks: { [index: string]: ITask }
+    tasks: { [index: string]: ITask },
+    startupActions: string[]
 }
 
 export interface IAction {
