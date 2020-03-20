@@ -19,7 +19,7 @@
 							<span class="headline">Allowed users</span>
 						</v-card-title>
 						<v-card-text>
-							<v-list>
+							<v-list height="70vh" class="scrolling-list">
 								<v-list-item-group>
 									<v-list-item v-for="{ email, id } in allowedUsers" :key="id">
 										<v-list-item-content>
@@ -143,7 +143,7 @@
 						<v-card>
 							<v-card-title primary-title>Startup actions</v-card-title>
 							<v-card-text>
-								<v-list>
+								<v-list height="70vh" class="scrolling-list">
 									<v-list-item-group>
 										<v-list-item v-for="action in connection.startupActions" :key="action">
 											<v-list-item-content>
@@ -170,7 +170,7 @@
 						<v-card>
 							<v-card-title primary-title>Logs</v-card-title>
 							<v-card-text>
-								<v-list class="scroll-y" height="70vh">
+								<v-list class="scrolling-list" height="70vh">
 									<v-list-item-group>
 										<v-list-item v-for="{name, id, date} in logs" :key="id" @click="openXterm(id, 'log')">
 											<v-list-item-content>
@@ -311,6 +311,10 @@
 		left: 50%;
 		transform: center center;
 	}
+
+    .scrolling-list {
+        overflow: auto;
+    }
 </style>
 
 <script lang="ts">
