@@ -172,6 +172,7 @@
 			<v-dialog v-model="terminalDialog" width="unset">
 				<div id="xterm" style="height: 510px"></div>
 				<v-btn id="terminalCloseButton" text dark @click="terminalDialog = false">close</v-btn>
+				<v-btn id="terminalCloseButton" style="right: 70px" text dark @click="killAction(terminalTarget)">kill</v-btn>
 			</v-dialog>
 
 			<v-card v-for="({task, actions}, taskId) in tasks" :key="taskId" class="mt-2">
