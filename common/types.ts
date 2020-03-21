@@ -61,7 +61,8 @@ export interface IFrontendResponse {
     logContent: {
         id: string,
         content: string
-    }
+    },
+    interfaces: string[]
 }
 
 export interface IAction {

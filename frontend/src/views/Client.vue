@@ -1,5 +1,5 @@
 <template>
-	<v-container class="my-5" v-if="!('loading' in $data) && client.id in connections">
+	<v-container class="my-5" v-if="!('loading' in $data) && connection">
 		<!-- Database edit card -->
 		<v-card class="mx-auto">
 			<!-- Client name -->
@@ -7,9 +7,33 @@
 				<input class="display-3" v-model="client.name" @change="changeClientName()" style="width: 100%" />
 			</v-card-title>
 			<v-card-actions>
-				<status-indicator :status="connections[client.id].state"></status-indicator>
-				<span class="grey--text">{{ client.url }}</span>
+				<status-indicator :status="connection.state"></status-indicator>
+				<span class="grey--text mr-2">{{ connection.url }}</span>
+				<lan-url-buttons
+					class="hidden-xs-only"
+					:connection="connection"
+					:client="client"
+					:clientId="clientId"
+					:realClientId="realClientId"
+					ref="buttons"
+				></lan-url-buttons>
 				<v-spacer></v-spacer>
+				<v-menu offset-y>
+					<template v-slot:activator="{ on }">
+						<v-btn fab small text v-on="on" class="hidden-sm-and-up">
+							<v-icon>mdi-lan</v-icon>
+						</v-btn>
+					</template>
+					<lan-url-buttons
+						:connection="connection"
+						:client="client"
+						:clientId="clientId"
+						:realClientId="realClientId"
+						ref="buttons"
+                        lines
+                        style="background-color: white"
+					></lan-url-buttons>
+				</v-menu>
 				<!-- Allowed users dialog -->
 				<v-dialog v-model="usersDialog" max-width="500px">
 					<template v-slot:activator="{ on }">
@@ -283,10 +307,10 @@
 			<v-card v-for="({task, actions}, taskId) in tasks" :key="taskId" class="mt-2">
 				<!-- Clicking on the title toggles the collapsed state -> if the content shows -->
 				<v-card-title v-ripple @click="toggleCollapsedState(taskId)" style="cursor: pointer">
-                    <template v-if="task.icon.length > 0">
-                        <v-icon v-if="task.icon.substr(0, 4) == 'mdi-'" class="mr-2" large>{{ task.icon }}</v-icon>
-                        <v-img v-else contain max-height="40" max-width="40" :src="task.icon"></v-img>
-                    </template>
+					<template v-if="task.icon.length > 0">
+						<v-icon v-if="task.icon.substr(0, 4) == 'mdi-'" class="mr-2" large>{{ task.icon }}</v-icon>
+						<v-img v-else contain max-height="40" max-width="40" :src="task.icon"></v-img>
+					</template>
 					{{ task.label }}
 					<span class="grey--text ml-1" v-if="task.label != taskId">{{ taskId }}</span>
 					<v-btn small text fab @click="refreshTasks()">
@@ -406,6 +430,7 @@
 	import firebase from "firebase/app"
 	import router from '../router'
 	import { Terminal } from "xterm"
+	import LanUrlButtons from "../components/LanUrlButtons.vue"
 	import "xterm/css/xterm.css"
 
 	type TerminalTargetType = "none" | "action" | "log"
@@ -420,7 +445,8 @@
 	export default Vue.extend({
 		name: "Client",
 		components: {
-			StatusIndicator
+			StatusIndicator,
+			LanUrlButtons
 		},
 		data: () => ({
 			client: { loading: true } as IClientDocument & { id: string, loading: true | null },
@@ -455,10 +481,11 @@
 			terminalLoading: false,
 			allowedUsers: [] as { id: string, email: string }[],
 			addUserLoading: false,
-			addUserError: ""
+			addUserError: "",
+			realClientId: ""
 		}),
 		mounted(this: Vue & { terminal: Terminal } & { [index: string]: any }) {
-			this.$bind("client", db.collection("clients").doc(this.clientId))
+			this.$bind("client", db.collection("clients").doc(this.realClientId))
 		},
 		props: {
 			clientId: String
@@ -494,19 +521,19 @@
 			},
 			connections: {
 				handler() {
-					if (this.connections[this.clientId].state != "online") {
+					if (!this.connection || this.connection.state != "online") {
 						this.terminal = null
 						this.terminalDialog = "none"
 						this.terminalTarget = ""
 					} else if (this.terminal) {
 						if (this.terminalDialog == "action") {
 							// If the terminal is targeting an action that's not running close it
-							if (!(this.terminalTarget in this.connections[this.clientId].runningActions)) {
+							if (!(this.terminalTarget in this.connection.runningActions)) {
 								this.terminal = null
 								this.terminalDialog = "none"
 								this.terminalTarget = ""
 							} else {
-								var action = this.connections[this.clientId].runningActions[this.terminalTarget] as IFrontendRunningAction
+								var action = this.connection.runningActions[this.terminalTarget] as IFrontendRunningAction
 								// Write all unwritten lines from history to term
 								while (action.history.length > this.terminalLastLine) {
 									this.terminal.write(action.history[this.terminalLastLine])
@@ -532,7 +559,7 @@
 						}
 					}
 					// Create list of logs for the dialog
-					this.logs = this.connection.logList.map((filename: string) => {
+					if (this.connection) this.logs = this.connection.logList.map((filename: string) => {
 						var [name, now] = filename.split("`")
 						var date = new Date(parseInt(now))
 
@@ -557,6 +584,13 @@
 
 					// Remove the old terminal element
 					this.terminal?.element?.remove()
+				}
+			},
+			clientId: {
+				immediate: true,
+				handler() {
+					// Can't use a computed value because then vue will throw up all kind of nonsense
+					this.realClientId = this.clientId.split("!")[0]
 				}
 			}
 		},
@@ -589,36 +623,36 @@
 				this.changeUsers([], [userId])
 			},
 			deleteClient() {
-				db.collection("clients").doc(this.clientId).delete()
+				db.collection("clients").doc(this.realClientId).delete()
 				router.push("/")
 			},
 			killAction(id: string) {
-				requestActionKill(connections[this.clientId], id)
+				requestActionKill(this.connection, id)
 			},
 			quickCommand(command: string) {
-				quickCommand(connections[this.clientId], command)
+				quickCommand(this.connection, command)
 			},
 			addStartupAction(action: string) {
-				addStartupAction(connections[this.clientId], action)
+				addStartupAction(this.connection, action)
 			},
 			removeStartupAction(action: string) {
-				removeStartupAction(connections[this.clientId], action)
+				removeStartupAction(this.connection, action)
 			},
 			getStartupActions() {
-				requestStartupActions(connections[this.clientId])
+				requestStartupActions(this.connection)
 			},
 			startTerminal(cwd: string | true = true) {
-				requestStartTerminal(connections[this.clientId], cwd)
+				requestStartTerminal(this.connection, cwd)
 			},
 			refreshTasks() {
-				requestRefreshTasks(connections[this.clientId])
+				requestRefreshTasks(this.connection)
 			},
 			requestLogs() {
 				requestLogs(this.connection)
 			},
 			runAction(name: string) {
-				if (!(name in connections[this.clientId].runningActions))
-					requestStartAction(connections[this.clientId], name)
+				if (!(name in this.connection.runningActions))
+					requestStartAction(this.connection, name)
 				else // If the action is running already open a terminal for it
 					this.openXterm(name, "action")
 			},
@@ -644,17 +678,17 @@
 					if (this.terminal) {
 						this.terminal.open(termDiv)
 						this.terminal.onData((data) => {
-							if (type == "action") sendData(this.connections[this.clientId], this.terminalTarget, data)
+							if (type == "action") sendData(this.connection, this.terminalTarget, data)
 						})
 
 						var term = this.terminal as Terminal
-						var connection = this.connections[this.clientId] as IConnection
+						var connection = this.connection as IConnection
 						var targetAction = connection.runningActions[action]
 						this.terminalLastLine = 0
 					}
 				}, 250)
 
-				if (type == "action") subscribeTo(this.connections[this.clientId], action)
+				if (type == "action") subscribeTo(this.connection, action)
 				else if (type == "log") getLogContent(this.connection, action)
 			},
 			getActionIcon(label: string) {
@@ -664,7 +698,7 @@
 				return icon ?? "mdi-help"
 			},
 			changeClientName() {
-				db.collection("clients").doc(this.clientId).update({
+				db.collection("clients").doc(this.realClientId).update({
 					name: this.client.name
 				})
 			},
@@ -675,10 +709,10 @@
 				} else {
 					Vue.set(this.collapsedState, id, !this.getCollapsedState(id))
 				}
-				localStorage.setItem("taskCollapse_" + this.clientId + "_" + id, set.toString())
+				localStorage.setItem("taskCollapse_" + this.realClientId + "_" + id, set.toString())
 			},
 			getCollapsedState(id: string) {
-				return this.collapsedState[id] ?? localStorage.getItem("taskCollapse_" + this.clientId + "_" + id) == "true"
+				return this.collapsedState[id] ?? localStorage.getItem("taskCollapse_" + this.realClientId + "_" + id) == "true"
 			},
 			refreshAllowedUsers() {
 				functions.httpsCallable("getClientConfig")({

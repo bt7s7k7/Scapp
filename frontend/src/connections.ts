@@ -20,8 +20,9 @@ export interface IConnection {
     verified: boolean,
     tasks: { [index: string]: ITask },
     startupActions: string[],
-    logs: {[index: string]: string},
-    logList: string[]
+    logs: { [index: string]: string },
+    logList: string[],
+    interfaces: string[]
 }
 
 export const connections = {} as { [index: string]: IConnection }
@@ -37,7 +38,8 @@ function createConnection(client: IClientDocument & { id: string }) {
         startupActions: [],
         websocket: null,
         logs: {},
-        logList: []
+        logList: [],
+        interfaces: []
     } as IConnection
 
     createWebsocket(client, connection)
@@ -131,6 +133,17 @@ function createWebsocket(client: IClientDocument & { id: string }, connection: I
 
             if (response.logs) {
                 Vue.set(connection, "logList", response.logs)
+            }
+
+            if (response.interfaces) {
+                Vue.set(connection, "interfaces", response.interfaces)
+
+                updateConnections(response.interfaces.map(v => {
+                    return {
+                        id: connection.id.split("!")[0] + "!" + (new URL(v)).hostname,
+                        url: v
+                    } as IClientDocument & {id: string}
+                }))
             }
         })
 

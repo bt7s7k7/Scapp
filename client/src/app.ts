@@ -154,7 +154,7 @@ var runner = (directArgument: RunType, ip: string = "") => () => {
                                 request.reject(404, "No supported protocol")
                             } else {
                                 var connection = request.accept(WEBSOCKET_PROTOCOL)
-                                new UserSession(connection, localConfig)
+                                new UserSession(connection, localConfig, port)
                             }
                         })
 

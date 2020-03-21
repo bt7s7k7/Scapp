@@ -10,7 +10,7 @@
 				</router-link>
 				<v-spacer></v-spacer>
 				<template v-if="authStore.currentUser != null">
-					<v-btn id="userIdText" @click="userIdDialog = true" text>{{ authStore.currentUser.email }}</v-btn>
+					<v-btn id="userIdText" class="no-transform" @click="userIdDialog = true" text>{{ authStore.currentUser.email }}</v-btn>
                     <!-- User Account dialog -->
 					<v-dialog v-model="userIdDialog" max-width="400">
 						<template v-slot:activator="{ on }">
@@ -70,8 +70,8 @@
 		display: none;
 	}
 
-	#userIdText {
-		text-transform: none;
+	.no-transform {
+		text-transform: none !important;
 	}
     /* Hide the user id on small screens and replace it with an icon */
 	@media screen and (max-width: 420px) {

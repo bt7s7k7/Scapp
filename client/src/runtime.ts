@@ -2,7 +2,7 @@ import { connection as Connection } from "websocket"
 import { IFrontendResponse, IFrontendRequest, IRunningActionInfo, IClientRegisterInfo, IClientLocalConfig, ITask, IAction } from "../../common/types"
 import { verifyIDToken } from "./functions"
 import { spawn, IPty } from "node-pty"
-import { homedir, EOL, hostname } from "os"
+import { homedir, EOL, hostname, networkInterfaces } from "os"
 import { readdir, readFile, appendFile, mkdir } from "fs"
 import { inspect } from "util"
 import { join, basename, resolve as pathResolve } from "path"
@@ -399,7 +399,7 @@ export class UserSession {
     public subscribedTo = null as string
     public verified = false
 
-    constructor(public connection: Connection, public localConfig: IClientLocalConfig) {
+    constructor(public connection: Connection, public localConfig: IClientLocalConfig, port: number) {
         var sendError = (errstring: string) => {
             connection.send(JSON.stringify({
                 err: errstring
@@ -643,10 +643,17 @@ export class UserSession {
                         verifyIDToken(localConfig, request.idToken).then(v => {
                             if (v.valid) {
                                 this.verified = true
-                                connection.send(JSON.stringify({ verified: true } as IFrontendResponse))
                                 this.sendRunningActions()
                                 this.sendTasksUpdate()
                                 this.sendStartupActions()
+                                
+                                // Send a message directly, can't set the response object, because this is a callback that happends later
+                                connection.send(JSON.stringify({ 
+                                    verified: true,
+                                    // Send local network interfaces so the webapp can transfer to a direct connection
+                                    interfaces: Object.values(networkInterfaces()).map(v=>v.filter(v=>v.family == "IPv4")[0].address).map(v=>"ws://" + v + ":" + port)
+                                } as IFrontendResponse))
+
                             }
                         })
                     }
