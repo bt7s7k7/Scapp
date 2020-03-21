@@ -30,8 +30,8 @@
 						:clientId="clientId"
 						:realClientId="realClientId"
 						ref="buttons"
-                        lines
-                        style="background-color: white"
+						lines
+						style="background-color: white"
 					></lan-url-buttons>
 				</v-menu>
 				<!-- Allowed users dialog -->
@@ -200,6 +200,9 @@
 					<v-btn class="hidden-lg-and-up" small text fab @click="requestLogs(); logsDialog = true">
 						<v-icon>mdi-file-clock</v-icon>
 					</v-btn>
+					<v-btn class="hidden-lg-and-up" small text fab @click="fileExplorerDialog = true">
+						<v-icon>mdi-folder</v-icon>
+					</v-btn>
 					<!-- For large and up show also text -->
 					<v-btn class="hidden-md-and-down" small @click="startTerminal()">
 						<v-icon left>mdi-console</v-icon>New shell
@@ -224,6 +227,9 @@
 					</v-btn>
 					<v-btn class="hidden-md-and-down" small @click="requestLogs(); logsDialog = true">
 						<v-icon left>mdi-file-clock</v-icon>Logs
+					</v-btn>
+                    <v-btn class="hidden-md-and-down" small @click="fileExplorerDialog = true">
+						<v-icon left>mdi-folder</v-icon>File explorer
 					</v-btn>
 					<!-- Startup actions dialog -->
 					<v-dialog v-model="startupActionsDialog" max-width="500px">
@@ -274,6 +280,10 @@
 								<v-btn text @click="logsDialog = false">close</v-btn>
 							</v-card-actions>
 						</v-card>
+					</v-dialog>
+					<!-- File explorer dialog -->
+					<v-dialog v-model="fileExplorerDialog">
+						<file-explorer :connection="connection"></file-explorer>
 					</v-dialog>
 				</v-card-actions>
 			</v-card>
@@ -419,6 +429,10 @@
 	.scrolling-list {
 		overflow: auto;
 	}
+
+    .file-explorer-list {
+        height: 70vh
+    }
 </style>
 
 <script lang="ts">
@@ -431,7 +445,8 @@
 	import router from '../router'
 	import { Terminal } from "xterm"
 	import LanUrlButtons from "../components/LanUrlButtons.vue"
-	import "xterm/css/xterm.css"
+    import "xterm/css/xterm.css"
+    import FileExplorer from "../components/FileExplorer.vue"
 
 	type TerminalTargetType = "none" | "action" | "log"
 
@@ -446,7 +461,8 @@
 		name: "Client",
 		components: {
 			StatusIndicator,
-			LanUrlButtons
+            LanUrlButtons,
+            FileExplorer
 		},
 		data: () => ({
 			client: { loading: true } as IClientDocument & { id: string, loading: true | null },
@@ -482,7 +498,8 @@
 			allowedUsers: [] as { id: string, email: string }[],
 			addUserLoading: false,
 			addUserError: "",
-			realClientId: ""
+			realClientId: "",
+			fileExplorerDialog: false
 		}),
 		mounted(this: Vue & { terminal: Terminal } & { [index: string]: any }) {
 			this.$bind("client", db.collection("clients").doc(this.realClientId))

@@ -26,14 +26,14 @@ var runner = (directArgument: RunType, ip: string = "") => () => {
             })
 
             child.on("close", (code) => {
-                if (code == RESTART_EXIT_CODE) {
-                    log("\n-- Restart --\n")
-                    start()
-                } else if (code == RESTART_AND_WAIT_EXIT_CODE) {
+                if (code == RESTART_AND_WAIT_EXIT_CODE) {
                     log("\n-- Restarting in 1m --\n")
                     setTimeout(() => {
                         start()
                     }, 1000 * 60)
+                } else if (code != 0) {
+                    log("\n-- Restart --\n")
+                    start()
                 } else {
                     resolve()
                 }
@@ -211,7 +211,7 @@ var runner = (directArgument: RunType, ip: string = "") => () => {
             args: 0,
             desc: "lans                - Prints IPv4 addresses of all network interfaces",
             callback() {
-                Object.values(networkInterfaces()).forEach(v=>v.filter(v=>v.family == "IPv4").forEach(v=>log(v.address)))
+                Object.values(networkInterfaces()).forEach(v => v.filter(v => v.family == "IPv4").forEach(v => log(v.address)))
             }
         },
         version: {

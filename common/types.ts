@@ -34,13 +34,27 @@ export interface IFrontendRequest {
     addStartupAction: string,
     removeStartupAction: string,
     readLog: string,
-    getLogs: boolean
+    getLogs: boolean,
+    readdir: string,
+    unlink: string,
+    putFile: {
+        path: string,
+        content: string
+    },
+    getFile: string
 }
 
 export interface IRunningActionInfo {
     id: string,
     label: string,
     exitCode: number
+}
+
+export interface IFile {
+    name: string,
+    size: number,
+    isDirectory: boolean,
+    path: string
 }
 
 export interface IFrontendResponse {
@@ -62,7 +76,15 @@ export interface IFrontendResponse {
         id: string,
         content: string
     },
-    interfaces: string[]
+    interfaces: string[],
+    directory: {
+        files: IFile[],
+        path: string
+    },
+    fileContent: {
+        name: string,
+        content: string
+    }
 }
 
 export interface IAction {

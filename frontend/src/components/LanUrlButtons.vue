@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<template
-			v-for="url in [...connection.interfaces, ...(clientId == realClientId ? [] : [client.url])].filter(v => formatLocalUrl(v) != clientId.split('!')[1])"
+			v-for="url in urls"
 		>
 			<v-btn
 				small
@@ -19,7 +19,18 @@
 </template>
 
 <script lang="ts">
-	import Vue from 'vue'
+    import Vue from 'vue'
+    import { connections } from "../connections"
+    
+    // This is outside because Vue was throwing up
+    function formatLocalUrl(url: string) {
+        try {
+            return (new URL(url)).hostname
+        } catch {
+            return ""
+        }
+    }
+
 	export default Vue.extend({
 		props: {
 			connection: Object,
@@ -29,9 +40,16 @@
 			lines: Boolean
 		},
 		methods: {
-			formatLocalUrl(url: string) {
-				return (new URL(url)).hostname
-			}
-		}
+			formatLocalUrl
+        },
+        computed: {
+            urls() {
+                return [
+                    ...this.connection.interfaces, 
+                    ...(this.clientId == this.realClientId ? [] : [this.client.url])
+                ].filter(v => formatLocalUrl(v) != this.clientId.split('!')[1])
+                    .filter(v => (v.includes("ngrok") ? connections[this.realClientId] : connections[this.realClientId + "!" + formatLocalUrl(v)])?.state == "online")
+            }
+        }
 	})
 </script>

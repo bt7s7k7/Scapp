@@ -1,11 +1,11 @@
 import { connection as Connection } from "websocket"
-import { IFrontendResponse, IFrontendRequest, IRunningActionInfo, IClientRegisterInfo, IClientLocalConfig, ITask, IAction } from "../../common/types"
+import { IFrontendResponse, IFrontendRequest, IRunningActionInfo, IClientRegisterInfo, IClientLocalConfig, ITask, IAction, IFile } from "../../common/types"
 import { verifyIDToken } from "./functions"
 import { spawn, IPty } from "node-pty"
 import { homedir, EOL, hostname, networkInterfaces } from "os"
-import { readdir, readFile, appendFile, mkdir } from "fs"
+import { readdir, readFile, appendFile, mkdir, stat, Stats, writeFile, unlink } from "fs"
 import { inspect } from "util"
-import { join, basename, resolve as pathResolve } from "path"
+import { join, basename, resolve as pathResolve, dirname } from "path"
 import * as datauri from "datauri"
 import { saveLocalConfig } from "./config"
 
@@ -274,7 +274,7 @@ export function scanTasks(config: IClientLocalConfig) {
 
                                                     if (iconPath.substr(0, 4) == "mdi-") { // If the icon begins with mdi- it can be a material design icon, so just keep it
                                                         task.icon = iconPath
-                                                    } else { 
+                                                    } else {
                                                         try {
                                                             task.icon = datauri.sync(pathResolve(scanPath, iconPath)) // Load the target file and save the dataURI
                                                         } catch (err) {
@@ -427,7 +427,7 @@ export class UserSession {
                     // The webapp must send a id token to be verified with
                     // a cloud function to execute commands otherwise anyone
                     // could connect to the socket and controll the client
-                    if (this.verified) { 
+                    if (this.verified) {
                         if (request.listRunning) {
                             Object.assign(response, this.getRunningActionsRespose())
                         }
@@ -516,7 +516,7 @@ export class UserSession {
 
                             // Join the history to reduce memory fragmentation
                             // and make the packet smaller
-                            target.history = [target.history.join("")] 
+                            target.history = [target.history.join("")]
                             response.actionTerminalHistory = {
                                 id: request.subscribe,
                                 history: target.history[0]
@@ -637,6 +637,27 @@ export class UserSession {
                                 }
                             })
                         }
+
+                        if (request.readdir) {
+                            let path = request.readdir
+
+                            this.sendDirectory(path)
+                        }
+
+                        if (request.putFile) {
+                            writeFile(request.putFile.path, request.putFile.content, (err) => { if (err) sendError(err.stack); else this.sendDirectory(basename(request.putFile.path)) })
+                        }
+
+                        if (request.unlink) {
+                            unlink(request.unlink, (err) => { if (err) sendError(err.stack); else this.sendDirectory(basename(request.unlink)) })
+                        }
+
+                        if (request.getFile) {
+                            (new datauri()).encode(request.getFile, (err: Error, content: string) => {
+                                if (err) sendError(err.stack)
+                                else connection.send(JSON.stringify({ fileContent: { name: basename(request.getFile), content } } as IFrontendResponse))
+                            })
+                        }
                     }
 
                     if (request.idToken) {
@@ -646,12 +667,13 @@ export class UserSession {
                                 this.sendRunningActions()
                                 this.sendTasksUpdate()
                                 this.sendStartupActions()
-                                
+                                this.sendDirectory(homedir())
+
                                 // Send a message directly, can't set the response object, because this is a callback that happends later
-                                connection.send(JSON.stringify({ 
+                                connection.send(JSON.stringify({
                                     verified: true,
                                     // Send local network interfaces so the webapp can transfer to a direct connection
-                                    interfaces: Object.values(networkInterfaces()).map(v=>v.filter(v=>v.family == "IPv4")[0].address).map(v=>"ws://" + v + ":" + port)
+                                    interfaces: Object.values(networkInterfaces()).map(v => v.filter(v => v.family == "IPv4")[0].address).map(v => "ws://" + v + ":" + port)
                                 } as IFrontendResponse))
 
                             }
@@ -675,6 +697,38 @@ export class UserSession {
         connection.on("close", () => {
             unsubsribe()
             delete activeSessions[id]
+        })
+    }
+
+    sendDirectory(path: string) {
+        let connection = this.connection
+        let sendError = (err: string) => connection.send(JSON.stringify({ err } as IFrontendResponse))
+        readdir(path, (err, files) => {
+            if (err)
+                sendError(err.stack)
+            else
+                Promise.all(files.map(name => new Promise<[Stats, string]>((resolve, reject) => stat(join(path, name), (err, stat) => {
+                    if (err) {
+                        if (err.code == "EPERM" || err.code == "EBUSY") resolve(null)
+                        else reject(err)
+                    }
+                    else
+                        resolve([stat, name])
+                })))).then(stats => {
+                    connection.send(JSON.stringify({
+                        directory: {
+                            files: [{
+                                isDirectory: true,
+                                name: "..",
+                                path: dirname(path),
+                                size: 0
+                            }, ...stats.filter(v => v).map(([stats, name]) => ({ isDirectory: stats.isDirectory(), name, size: stats.size, path: join(path, name) } as IFile))],
+                            path
+                        }
+                    } as IFrontendResponse))
+                }).catch(err => {
+                    sendError(err.stack)
+                })
         })
     }
 

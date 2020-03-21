@@ -1,4 +1,4 @@
-import { IClientDocument, WEBSOCKET_PROTOCOL, IFrontendRequest, IFrontendResponse, ITask } from "../../common/types"
+import { IClientDocument, WEBSOCKET_PROTOCOL, IFrontendRequest, IFrontendResponse, ITask, IFile } from "../../common/types"
 import Vue from "vue"
 import { authStore, auth } from './firebase'
 
@@ -22,7 +22,11 @@ export interface IConnection {
     startupActions: string[],
     logs: { [index: string]: string },
     logList: string[],
-    interfaces: string[]
+    interfaces: string[],
+    directory: {
+        path: string,
+        files: IFile[]
+    }
 }
 
 export const connections = {} as { [index: string]: IConnection }
@@ -39,7 +43,11 @@ function createConnection(client: IClientDocument & { id: string }) {
         websocket: null,
         logs: {},
         logList: [],
-        interfaces: []
+        interfaces: [],
+        directory: {
+            path: "",
+            files: []
+        }
     } as IConnection
 
     createWebsocket(client, connection)
@@ -145,6 +153,17 @@ function createWebsocket(client: IClientDocument & { id: string }, connection: I
                     } as IClientDocument & {id: string}
                 }))
             }
+
+            if (response.directory) {
+                Vue.set(connection, "directory", response.directory)
+            }
+
+            if (response.fileContent) {
+                let link = document.createElement("a") as HTMLAnchorElement
+                link.href = response.fileContent.content
+                link.download = response.fileContent.name
+                link.click()
+            }
         })
 
         Vue.set(connection, "websocket", websocket)
@@ -213,3 +232,21 @@ export function requestLogs(connection: IConnection) {
 export function getLogContent(connection: IConnection, id: string) {
     connection.websocket?.send(JSON.stringify({ readLog: id } as IFrontendRequest))
 }
+
+export function requestDirectory(connection: IConnection, path: string) {
+    connection.websocket?.send(JSON.stringify({ readdir: path } as IFrontendRequest))
+}
+
+export function getFile(connection: IConnection, path: string) {
+    connection.websocket?.send(JSON.stringify({ getFile: path } as IFrontendRequest))
+}
+
+export function unlink(connection: IConnection, path: string) {
+    connection.websocket?.send(JSON.stringify({ unlink: path } as IFrontendRequest))
+}
+
+export function putFile(connection: IConnection, path: string, content: string) {
+    connection.websocket?.send(JSON.stringify({ putFile: { path, content } } as IFrontendRequest))
+}
+
+
