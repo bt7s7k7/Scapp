@@ -63,14 +63,20 @@
 	import { updateConnections, connections, IConnection } from "../connections"
     import StatusIndicator from "../components/StatusIndicator.vue"
 
-    var cols = {
-        num: 3
+	var cols = {
+		num: 3
+    }
+    
+    function recalcSpace() {
+		var space = window.innerWidth - 100
+		cols.num = Math.max(1, Math.floor(space / 240))
     }
 
     window.addEventListener("resize", ()=>{
         var space = window.innerWidth - 100
         cols.num = Math.max(1, Math.floor(space / 240))
     })
+	window.addEventListener("resize", () => recalcSpace())
 
 	export default Vue.extend({
 		name: "Home",
@@ -86,6 +92,7 @@
 		mounted(this: Vue) {
 			if (!authStore.currentUser) return
             this.$bind("clients", db.collection("clients").where("allowedUsers", "array-contains", authStore.currentUser.uid))
+            recalcSpace()
 		},
 		watch: {
 			clients() {
