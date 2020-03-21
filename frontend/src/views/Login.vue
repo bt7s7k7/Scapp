@@ -2,6 +2,9 @@
 	<v-container style="height: 100%">
 		<v-card class="login-card" max-width="400">
 			<v-card-text>To use scapp you need to login with your Google account</v-card-text>
+            <v-btn class="login-help" href="https://github.com/bt7s7k7/Scapp/blob/master/README.md" text fab small>
+                <v-icon>mdi-information</v-icon>
+            </v-btn>
 			<v-card-actions>
 				<div id="authContainer" class="mx-auto">
 					<v-progress-circular indeterminate color="primary" v-if="loading" class="ma-auto"></v-progress-circular>
@@ -16,6 +19,12 @@
         margin: auto;
         top: 50%;
         transform: translate(0, -100%);
+    }
+
+    .login-help {
+        position: absolute;
+        top: 4px;
+        right: -50px
     }
 </style>
 

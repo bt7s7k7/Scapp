@@ -1,36 +1,44 @@
 <template>
-	<div class="home-cards">
-        <div v-for="col in cols.num" :key="col">
-		<v-card
-			v-for="{client, actionsNum, errorsNum, connection, url} in clientCards.filter((_, i) => i % cols.num == col - 1)"
-			:key="client.id"
-			class="mt-2 mr-2 client-card"
-            width="100%"
-			:to="client.id"
-			hover
-		>
-			<v-card-title>{{ client.name }}</v-card-title>
-			<v-card-actions>
-				<template v-if="url.length > 0">
-					<status-indicator :status="connection.state"></status-indicator>
-					<span class="grey--text">{{ url }}</span>
-					<v-spacer></v-spacer>
-					<template v-if="actionsNum > 0">
-						<v-progress-circular indeterminate size="16" class="mr-1" color="primary"></v-progress-circular>
-						{{ actionsNum }}
-					</template>
-					<template v-if="errorsNum > 0">
-						<v-icon small color="error" class="ml-2">mdi-alert</v-icon>
-						{{ errorsNum }}
-					</template>
-				</template>
-				<template v-else>
-					<v-icon small class="mr-1" color="orange">mdi-alert-decagram</v-icon>
-					<span class="grey--text">Brand new</span>
-				</template>
-			</v-card-actions>
-		</v-card>
-        </div>
+	<div>
+        <v-row class="mx-4">
+            <v-spacer></v-spacer>
+            <v-btn href="https://github.com/bt7s7k7/Scapp/blob/master/README.md" text fab small>
+                <v-icon>mdi-information</v-icon>
+            </v-btn>
+        </v-row>
+		<div class="home-cards">
+			<div v-for="col in cols.num" :key="col">
+				<v-card
+					v-for="{client, actionsNum, errorsNum, connection, url} in clientCards.filter((_, i) => i % cols.num == col - 1)"
+					:key="client.id"
+					class="mt-2 mr-2 client-card"
+					width="100%"
+					:to="client.id"
+					hover
+				>
+					<v-card-title>{{ client.name }}</v-card-title>
+					<v-card-actions>
+						<template v-if="url.length > 0">
+							<status-indicator :status="connection.state"></status-indicator>
+							<span class="grey--text">{{ url }}</span>
+							<v-spacer></v-spacer>
+							<template v-if="actionsNum > 0">
+								<v-progress-circular indeterminate size="16" class="mr-1" color="primary"></v-progress-circular>
+								{{ actionsNum }}
+							</template>
+							<template v-if="errorsNum > 0">
+								<v-icon small color="error" class="ml-2">mdi-alert</v-icon>
+								{{ errorsNum }}
+							</template>
+						</template>
+						<template v-else>
+							<v-icon small class="mr-1" color="orange">mdi-alert-decagram</v-icon>
+							<span class="grey--text">Brand new</span>
+						</template>
+					</v-card-actions>
+				</v-card>
+			</div>
+		</div>
 	</div>
 </template>
 
@@ -40,18 +48,19 @@
 	}
 
 	.home-cards {
-        margin: 50px;
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
-    }
+		margin: 50px;
+		margin-top: 0;
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+	}
 
-    .home-cards > * {
-        display: flex;
-        flex: 1 1;
-        padding: 4px;
-        flex-direction: column;
-    }
+	.home-cards > * {
+		display: flex;
+		flex: 1 1;
+		padding: 4px;
+		flex-direction: column;
+	}
 </style>
 
 <script lang="ts">
@@ -61,7 +70,7 @@
 	import { db } from "../firebase"
 	import { IClientDocument } from "../../../common/types"
 	import { updateConnections, connections, IConnection } from "../connections"
-    import StatusIndicator from "../components/StatusIndicator.vue"
+	import StatusIndicator from "../components/StatusIndicator.vue"
 
 	var cols = {
 		num: 3
@@ -72,10 +81,6 @@
 		cols.num = Math.max(1, Math.floor(space / 240))
     }
 
-    window.addEventListener("resize", ()=>{
-        var space = window.innerWidth - 100
-        cols.num = Math.max(1, Math.floor(space / 240))
-    })
 	window.addEventListener("resize", () => recalcSpace())
 
 	export default Vue.extend({
@@ -86,8 +91,8 @@
 		data: () => ({
 			auth: authStore,
 			clients: [] as (IClientDocument & { id: string })[],
-            connections,
-            cols
+			connections,
+			cols
 		}),
 		mounted(this: Vue) {
 			if (!authStore.currentUser) return
@@ -106,8 +111,8 @@
 					var actions = Object.values(connection.runningActions)
 					var errorsNum = actions.filter(v => v.exitCode != 0).length
 					var actionsNum = actions.length - errorsNum - 1
-                    if (connection.state != "online") errorsNum = actionsNum = 0
-                    var url = v.url.includes("ngrok") ? v.url.split(".")[0] : v.url
+					if (connection.state != "online") errorsNum = actionsNum = 0
+					var url = v.url.includes("ngrok") ? v.url.split(".")[0] : v.url
 					return {
 						client: v,
 						actionsNum,
