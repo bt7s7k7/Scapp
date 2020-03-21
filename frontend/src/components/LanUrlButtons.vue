@@ -1,8 +1,7 @@
 <template>
 	<div>
 		<template
-			v-for="url in [...connection.interfaces, ...(clientId == realClientId ? [] : [client.url])]"
-			v-if="formatLocalUrl(url) != clientId.split('!')[1]"
+			v-for="url in [...connection.interfaces, ...(clientId == realClientId ? [] : [client.url])].filter(v => formatLocalUrl(v) != clientId.split('!')[1])"
 		>
 			<v-btn
 				small
